@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getWaters } from "../api/waters"; // Oder deine getWaterById API, falls vorhanden
 import { ArrowLeft, MapPin, Notebook, Fish, ExternalLink } from "lucide-react";
-import "../app.css";
+import "../App.css";
 
 // Lokale Bilder für den Fallback importieren
 import seeBg from "../assets/see.jpg";
