@@ -14,7 +14,7 @@ import {
   CloudRain,
   Anchor, // Neues Icon für die Favoriten-Kacheln
 } from "lucide-react";
-import "../app.css";
+import "../App.css";
 
 type WaterSpot = {
   _id?: string;
