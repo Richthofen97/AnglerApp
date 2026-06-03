@@ -6,7 +6,7 @@ import WeatherCard from "../components/WeatherCard";
 import BiteChart from "../components/BiteChart";
 import { LogOut, Heart, BookOpen, Compass } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // Hook-Import bleibt hier oben
-import "../app.css";
+import "../App.css";
 
 type WaterSpot = {
   _id?: string;
