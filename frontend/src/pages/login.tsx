@@ -20,12 +20,12 @@ export default function Login({ onLoginSuccess }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
   // ==========================================================================
-  // 3D ERDKUGEL ANMATION (Three.js)
+  // 3D HIGH-TECH PARTIKEL-GLOBUS (Three.js) - Braucht KEINE Bild-Dateien!
   // ==========================================================================
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // 1. Szene & Kamera aufsetzen
+    // 1. Szene & Kamera
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -33,7 +33,7 @@ export default function Login({ onLoginSuccess }: Props) {
       0.1,
       1000,
     );
-    camera.position.z = 11;
+    camera.position.z = 10;
 
     // 2. Renderer initialisieren
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -48,49 +48,73 @@ export default function Login({ onLoginSuccess }: Props) {
 
     mountRef.current.appendChild(renderer.domElement);
 
-    // 3. Die Erdkugel erschaffen (Leuchtendes Gitternetz in Cyan)
-    const geometry = new THREE.SphereGeometry(5.2, 24, 24);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x2dd4bf,
-      wireframe: true,
+    // 3. ECHTEN PARTIKEL-GLOBUS GENERIEREN
+    // Wir erzeugen mathematisch tausende kleine leuchtende Punkte auf einer Kugeloberfläche
+    const particleCount = 2800; // Anzahl der leuchtenden Punkte
+    const radius = 5.0;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      // Mathematische Verteilung für eine perfekte Kugelform
+      const phi = Math.acos(-1 + (2 * i) / particleCount);
+      const theta = Math.sqrt(particleCount * Math.PI) * phi;
+
+      positions[i * 3] = radius * Math.cos(theta) * Math.sin(phi); // X
+      positions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi); // Y
+      positions[i * 3 + 2] = radius * Math.cos(phi); // Z
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+    // Material für die leuchtenden Punkte
+    const material = new THREE.PointsMaterial({
+      color: 0x2dd4bf, // Dein leuchtendes Cyan (--accent-cyan)
+      size: 0.05, // Größe der einzelnen Punkte
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.5, // Schön dezent im Hintergrund
     });
-    const globe = new THREE.Mesh(geometry, material);
+
+    const globe = new THREE.Points(geometry, material);
     scene.add(globe);
 
-    // Subtiler innerer dunkler Kern für den 3D-Effekt
-    const coreGeometry = new THREE.SphereGeometry(5.1, 12, 12);
-    const coreMaterial = new THREE.MeshBasicMaterial({
+    // Subtiler innerer Gitterkern für mehr Tiefe
+    const wireGeometry = new THREE.SphereGeometry(4.9, 15, 15);
+    const wireMaterial = new THREE.MeshBasicMaterial({
       color: 0x16222f,
+      wireframe: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.2,
     });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    const core = new THREE.Mesh(wireGeometry, wireMaterial);
     scene.add(core);
 
-    // Positionierung: Auf Desktops rechts, auf Smartphones zentriert hinter der Kachel
+    // Positionierung (Desktops rechts versetzt, Handys zentriert)
     if (window.innerWidth > 768) {
-      globe.position.x = 3.5;
-      core.position.x = 3.5;
+      globe.position.x = 3.2;
+      core.position.x = 3.2;
     } else {
       globe.position.x = 0;
       core.position.x = 0;
-      globe.position.y = 1.2;
-      core.position.y = 1.2;
+      globe.position.y = 1.0;
+      core.position.y = 1.0;
     }
 
     // 4. Animations-Schleife
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      globe.rotation.y += 0.0012;
-      globe.rotation.x += 0.0004;
+
+      // Kugel sanft rotieren lassen
+      globe.rotation.y += 0.0015;
+      globe.rotation.x += 0.0003;
+      core.rotation.y -= 0.0005;
+
       renderer.render(scene, camera);
     };
     animate();
 
-    // 5. Responsive Resize (Automatisches Mitwachsen)
+    // 5. Responsive Resize
     const handleResize = () => {
       if (!mountRef.current) return;
       const width = window.innerWidth;
@@ -103,18 +127,18 @@ export default function Login({ onLoginSuccess }: Props) {
       if (width < 768) {
         globe.position.x = 0;
         core.position.x = 0;
-        globe.position.y = 1.2;
-        core.position.y = 1.2;
+        globe.position.y = 1.0;
+        core.position.y = 1.0;
       } else {
-        globe.position.x = 3.5;
-        core.position.x = 3.5;
+        globe.position.x = 3.2;
+        core.position.x = 3.2;
         globe.position.y = 0;
         core.position.y = 0;
       }
     };
     window.addEventListener("resize", handleResize);
 
-    // 6. Cleanup beim Verlassen des Login-Bildschirms
+    // 6. Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", handleResize);
@@ -123,8 +147,8 @@ export default function Login({ onLoginSuccess }: Props) {
       }
       geometry.dispose();
       material.dispose();
-      coreGeometry.dispose();
-      coreMaterial.dispose();
+      wireGeometry.dispose();
+      wireMaterial.dispose();
     };
   }, []);
 
@@ -198,7 +222,7 @@ export default function Login({ onLoginSuccess }: Props) {
         }}
       />
 
-      {/* Die edle Kachel im Glassmorphism-Design (schwebend über der Erde) */}
+      {/* Die edle Kachel im Glassmorphism-Design */}
       <div className="login-card" style={{ position: "relative", zIndex: 10 }}>
         <div className="login-card-header">
           <h2>{isLogin ? "Petri Heil!" : "Registrieren"}</h2>
