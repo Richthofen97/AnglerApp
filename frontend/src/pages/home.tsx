@@ -8,10 +8,6 @@ import { LogOut, Heart, BookOpen, Compass } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // Hook-Import bleibt hier oben
 import "../app.css";
 
-import seeBg from "../assets/see.jpg";
-import flussBg from "../assets/fluss.jpg";
-import meerBg from "../assets/meer.jpg";
-
 type WaterSpot = {
   _id?: string;
   name: string;
