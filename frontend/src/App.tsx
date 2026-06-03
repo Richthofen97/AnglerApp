@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
+import WaterDetail from "./pages/WaterDetail";
 import Login from "./pages/login";
 import Home from "./pages/home";
 import Profile from "./pages/profile";
@@ -85,6 +85,7 @@ export default function App() {
               <Route path="/faenge" element={<Catches />} />
               <Route path="/gewaesser" element={<Waters />} />
               <Route path="*" element={<Navigate to="/" />} />
+              <Route path="/gewaesser/:id" element={<WaterDetail />} />
             </Routes>
           </main>
 

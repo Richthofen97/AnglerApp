@@ -9,29 +9,24 @@ import { useEffect, useState, useRef } from "react";
 import L from "leaflet";
 import { createWater, getWaters, deleteWater } from "../api/waters";
 
-// Leaflet CSS direkt importieren, um Darstellungsfehler zu beheben
 import "leaflet/dist/leaflet.css";
 
 type WaterSpot = {
   _id?: string;
   name: string;
-  description: string;
+  location: string;
   lat: number;
   lng: number;
+  waterType?: string;
+  imageUrl?: string;
 };
 
-type Pos = {
-  lat: number;
-  lng: number;
-};
+type Pos = { lat: number; lng: number };
 
 function ClickHandler({ onClick }: { onClick: (pos: Pos) => void }) {
   useMapEvents({
     click(e) {
-      onClick({
-        lat: e.latlng.lat,
-        lng: e.latlng.lng,
-      });
+      onClick({ lat: e.latlng.lat, lng: e.latlng.lng });
     },
   });
   return null;
@@ -42,25 +37,21 @@ export default function Map() {
   const [dbMarkers, setDbMarkers] = useState<WaterSpot[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // States für das Erstellen eines neuen temporären Markers
+  // States für neuen Spot (inklusive Gewässertyp und Bilddatei)
   const [newSpotPos, setNewSpotPos] = useState<Pos | null>(null);
   const [newSpotName, setNewSpotName] = useState<string>("");
+  const [waterType, setWaterType] = useState<string>("see");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   const newMarkerRef = useRef<L.Marker | null>(null);
 
-  // -----------------------------
-  // INITIAL LOAD (GPS + DATABASE)
-  // -----------------------------
   useEffect(() => {
     if (!navigator.geolocation) {
       setPosition({ lat: 49.4521, lng: 11.0767 });
     } else {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setPosition({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
+          setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         (err) => {
           console.log("GPS BLOCKED:", err);
@@ -72,7 +63,6 @@ export default function Map() {
     loadWaters();
   }, []);
 
-  // Öffnet das Popup des neuen Markers automatisch, sobald er auf der Karte erscheint
   useEffect(() => {
     if (newSpotPos && newMarkerRef.current) {
       newMarkerRef.current.openPopup();
@@ -89,31 +79,32 @@ export default function Map() {
     }
   }
 
-  // Klick auf Map: Setzt einen temporären Vorschau-Marker
   function handleMapClick(pos: Pos) {
     setNewSpotPos(pos);
-    setNewSpotName(""); // Eingabefeld leeren
+    setNewSpotName("");
+    setWaterType("see");
+    setSelectedImage(null);
   }
 
-  // Absenden des Popup-Formulars speichert in der MongoDB
+  // KORRIGIERT: Übergibt jetzt alle 6 geforderten Argumente an die API
   async function handleSaveSpot(e: React.FormEvent) {
     e.preventDefault();
     if (!newSpotPos || !newSpotName.trim()) return;
 
     try {
-      // 1. Backend-Call absetzen und auf DB-Eintrag warten
       await createWater(
         newSpotName,
-        "GPS Spot",
+        waterType.toUpperCase(),
         newSpotPos.lat,
         newSpotPos.lng,
+        waterType,
+        selectedImage,
       );
 
-      // 2. Eingabe-Zustand sofort aufräumen
       setNewSpotPos(null);
       setNewSpotName("");
-
-      // 3. Frisch mit der MongoDB synchronisieren
+      setWaterType("see");
+      setSelectedImage(null);
       await loadWaters();
     } catch (err) {
       console.log("Fehler beim Speichern:", err);
@@ -122,18 +113,13 @@ export default function Map() {
     }
   }
 
-  // Gewässer aus der DB löschen
   async function handleDeleteSpot(id: string) {
     if (!window.confirm("Möchtest du diesen Spot wirklich löschen?")) return;
-
     try {
-      // 1. API Call zum Löschen absenden
       await deleteWater(id);
-      // 2. UI direkt aktualisieren, indem wir den entfernten Spot herausfiltern
       setDbMarkers((prev) => prev.filter((spot) => spot._id !== id));
     } catch (err) {
       console.log("Fehler beim Löschen des Spots:", err);
-      alert("Fehler beim Löschen des Gewässers.");
     }
   }
 
@@ -148,7 +134,6 @@ export default function Map() {
       </p>
     );
 
-  // Base64-Grafiken für fehlerfreies Rendering in Vite
   const userIcon = new L.Icon({
     iconUrl:
       "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj48cGF0aCBmaWxsPSIjMmRkNGJmIiBkPSJNMTIgMmE4IDggMCAwIDAgLTggOGMwIDUuMjUgOCAxMiA4IDEyczgtNi43NSA4LTEyYTggOCAwIDAgMCAtOC04em0wIDExYTQgNCAwIDEgMSAtNC00IDQgNCAwIDAgMSA0IDR6Ii8+PC9zdmc+",
@@ -178,10 +163,8 @@ export default function Map() {
 
       <ClickHandler onClick={handleMapClick} />
 
-      {/* Eigener Standort */}
       <Marker position={[position.lat, position.lng]} icon={userIcon} />
 
-      {/* Temporärer Marker für die neue Eingabe */}
       {newSpotPos && (
         <Marker
           position={[newSpotPos.lat, newSpotPos.lng]}
@@ -189,22 +172,94 @@ export default function Map() {
           ref={newMarkerRef}
         >
           <Popup closeOnClick={false}>
-            <form onSubmit={handleSaveSpot} className="map-popup-form">
-              <h3>Neuen Spot eintragen</h3>
+            <form
+              onSubmit={handleSaveSpot}
+              className="map-popup-form"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                minWidth: "180px",
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: "14px" }}>
+                Neuen Spot eintragen
+              </h3>
+
               <input
                 type="text"
-                placeholder="Gewässername (z.B. Baggersee)"
+                placeholder="Gewässername"
                 value={newSpotName}
                 onChange={(e) => setNewSpotName(e.target.value)}
                 autoFocus
+                style={{
+                  padding: "6px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--bg-input)",
+                  color: "#fff",
+                }}
               />
-              <button type="submit">Speichern</button>
+
+              {/* Auswahl des Typs */}
+              <select
+                value={waterType}
+                onChange={(e) => setWaterType(e.target.value)}
+                style={{
+                  padding: "6px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--bg-input)",
+                  color: "#fff",
+                }}
+              >
+                <option value="see">🏞️ See</option>
+                <option value="fluss">🏞️ Fluss</option>
+                <option value="meer">🌊 Meer</option>
+              </select>
+
+              {/* Foto-Upload Feld */}
+              <label
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                <span>📸 Eigenes Foto hinzufügen (optional):</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0])
+                      setSelectedImage(e.target.files[0]);
+                  }}
+                  style={{ fontSize: "11px" }}
+                />
+              </label>
+
+              <button
+                type="submit"
+                style={{
+                  padding: "8px",
+                  borderRadius: "6px",
+                  background: "var(--accent-cyan)",
+                  color: "#000",
+                  fontWeight: "bold",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Speichern
+              </button>
             </form>
           </Popup>
         </Marker>
       )}
 
-      {/* Alle bereits gespeicherten Spots aus der MongoDB */}
       {dbMarkers.map((spot, i) => (
         <Marker
           key={spot._id || `db-${i}`}
@@ -212,18 +267,34 @@ export default function Map() {
           icon={spotIcon}
         >
           <Popup>
-            <div className="map-popup-form">
-              <h3>{spot.name}</h3>
+            <div
+              className="map-popup-form"
+              style={{ textAlign: "center", minWidth: "150px" }}
+            >
+              {spot.imageUrl && (
+                <img
+                  src={spot.imageUrl}
+                  alt={spot.name}
+                  style={{
+                    width: "100%",
+                    maxHeight: "90px",
+                    objectFit: "cover",
+                    borderRadius: "8px",
+                    marginBottom: "8px",
+                  }}
+                />
+              )}
+              <h3 style={{ margin: "4px 0", fontSize: "14px" }}>{spot.name}</h3>
               <p
                 style={{
+                  fontStyle: "italic",
                   fontSize: "11px",
-                  color: "var(--text-muted)",
-                  margin: 0,
+                  color: "var(--accent-cyan)",
+                  margin: "0 0 8px 0",
                 }}
               >
-                Lat: {spot.lat.toFixed(4)} | Lng: {spot.lng.toFixed(4)}
+                Typ: {spot.waterType?.toUpperCase() || "SEE"}
               </p>
-              {/* Führt jetzt die echte Lösch-Funktion im Backend aus */}
               <button
                 className="btn-delete"
                 onClick={() => spot._id && handleDeleteSpot(spot._id)}

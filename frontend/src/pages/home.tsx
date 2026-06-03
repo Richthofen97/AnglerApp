@@ -1,20 +1,16 @@
 import { useEffect, useState } from "react";
-import { getWaters } from "../api/waters";
+import { getWaters, toggleFavorite } from "../api/waters";
 import { getLiveWeather } from "../api/weather";
 import HeroImage from "../components/HeroImage";
-import {
-  CloudSun,
-  Wind,
-  Gauge,
-  Fish,
-  LogOut,
-  Activity,
-  Cloud,
-  Sun,
-  CloudRain,
-  Anchor, // Neues Icon für die Favoriten-Kacheln
-} from "lucide-react";
-import "../App.css";
+import WeatherCard from "../components/WeatherCard";
+import BiteChart from "../components/BiteChart";
+import { LogOut, Heart, BookOpen, Compass } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // Hook-Import bleibt hier oben
+import "../app.css";
+
+import seeBg from "../assets/see.jpg";
+import flussBg from "../assets/fluss.jpg";
+import meerBg from "../assets/meer.jpg";
 
 type WaterSpot = {
   _id?: string;
@@ -22,19 +18,12 @@ type WaterSpot = {
   location: string;
   lat: number;
   lng: number;
-};
-type WeatherData = {
-  current: {
-    temp: number;
-    pressure: number;
-    wind: number;
-    code: number;
-    biteIndex: number;
-  };
-  hourlyBiteIndex: number[];
+  waterType?: string;
+  imageUrl?: string;
+  isFavorite?: boolean;
 };
 
-const fallbackWeatherData: WeatherData = {
+const fallbackWeatherData = {
   current: { temp: 18, pressure: 1013, wind: 12, code: 1, biteIndex: 82 },
   hourlyBiteIndex: Array.from({ length: 24 }, (_, h) =>
     Math.round(
@@ -51,41 +40,35 @@ export default function Home({
   email: string;
   onLogout: () => void;
 }) {
+  // ✅ RICHTIG: Hooks MÜSSEN direkt in der ersten Zeile der Hauptfunktion stehen!
+  const navigate = useNavigate();
+
   const [myWaters, setMyWaters] = useState<WaterSpot[]>([]);
-  const [weather, setWeather] = useState<WeatherData>(fallbackWeatherData);
+  const [weather, setWeather] = useState<any>(fallbackWeatherData);
   const [timeX, setTimeX] = useState<number>(50);
-  const [currentTimeString, setCurrentTimeString] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")} Uhr`;
-  });
+  const [currentTimeString, setCurrentTimeString] = useState<string>("");
+
+  async function loadDashboardData() {
+    try {
+      const watersData = await getWaters();
+      const validWaters = Array.isArray(watersData) ? watersData : [];
+      setMyWaters(validWaters);
+
+      const lat =
+        validWaters.length > 0 && validWaters[0] ? validWaters[0].lat : 49.4521;
+      const lng =
+        validWaters.length > 0 && validWaters[0] ? validWaters[0].lng : 11.0767;
+
+      const weatherData = await getLiveWeather(lat, lng);
+      if (weatherData && weatherData.current) {
+        setWeather(weatherData);
+      }
+    } catch (err) {
+      console.log("Wetter nutzt Fallback:", err);
+    }
+  }
 
   useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const watersData = await getWaters();
-        const validWaters = Array.isArray(watersData) ? watersData : [];
-        setMyWaters(validWaters);
-
-        let lat = 49.4521;
-        let lng = 11.0767;
-
-        if (validWaters.length > 0 && validWaters[0]) {
-          lat = validWaters[0].lat;
-          lng = validWaters[0].lng;
-        }
-
-        const weatherData = await getLiveWeather(lat, lng);
-        if (
-          weatherData &&
-          weatherData.current &&
-          Array.isArray(weatherData.hourlyBiteIndex)
-        ) {
-          setWeather(weatherData);
-        }
-      } catch (err) {
-        console.log("Wetter nutzt Design-Fallback:", err);
-      }
-    }
     loadDashboardData();
 
     function updateClock() {
@@ -101,49 +84,36 @@ export default function Home({
     return () => clearInterval(interval);
   }, []);
 
-  const getWeatherDetails = (code: number) => {
-    if (code === 0)
-      return {
-        text: "Klar",
-        icon: <Sun size={20} color="var(--accent-cyan)" />,
-      };
-    if (code >= 1 && code <= 3)
-      return {
-        text: "Bewölkt",
-        icon: <CloudSun size={20} color="var(--accent-cyan)" />,
-      };
-    if (code >= 45 && code <= 48)
-      return {
-        text: "Nebel",
-        icon: <Cloud size={20} color="var(--text-muted)" />,
-      };
-    return {
-      text: "Regen",
-      icon: <CloudRain size={20} color="var(--accent-cyan)" />,
-    };
-  };
+  async function handleToggleFavorite(id: string, currentStatus: boolean) {
+    try {
+      const newStatus = !currentStatus;
+      setMyWaters((p) =>
+        p.map((w) => (w._id === id ? { ...w, isFavorite: newStatus } : w)),
+      );
+      await toggleFavorite(id, newStatus);
+    } catch (err) {
+      console.error(err);
+      loadDashboardData();
+    }
+  }
 
-  const generateLivePath = () =>
-    weather.hourlyBiteIndex
-      .map(
-        (v, h) =>
-          `${h === 0 ? "M" : "L"} ${(h / 23) * 100} ${22 - ((v - 10) / 90) * 16}`,
-      )
-      .join(" ");
-  const getCurrentY = () =>
-    22 -
-    (((weather.hourlyBiteIndex[new Date().getHours()] || 50) - 10) / 90) * 16;
-  const weatherDetails = getWeatherDetails(weather.current.code);
+  const favoriteWaters = myWaters.filter((w) => w.isFavorite === true);
+
+  const getKachelClass = (water: WaterSpot) => {
+    const typ = (water.waterType || "see").toLowerCase().trim();
+    if (typ === "fluss") return "bg-fluss";
+    if (typ === "meer") return "bg-meer";
+    return "bg-see";
+  };
 
   return (
     <div className="dashboard-container">
-      {/* Randloser Header */}
+      {/* Header */}
       <div
         className="hero-header"
         style={{ position: "relative", zIndex: 1, overflow: "hidden" }}
       >
         <HeroImage />
-
         <div
           style={{
             position: "absolute",
@@ -157,7 +127,6 @@ export default function Home({
             pointerEvents: "none",
           }}
         ></div>
-
         <div
           className="hero-top-row"
           style={{ position: "relative", zIndex: 10 }}
@@ -183,7 +152,6 @@ export default function Home({
             <LogOut size={16} />
           </button>
         </div>
-
         <div style={{ position: "relative", zIndex: 10, marginTop: "auto" }}>
           <h1
             style={{
@@ -211,164 +179,91 @@ export default function Home({
       </div>
 
       {/* Wetter */}
-      <div className="weather-card">
-        <div className="weather-main">
-          <div className="weather-temp-box">
-            <span className="weather-degree">
-              {Math.round(weather.current.temp)}
-            </span>
-            <span className="weather-unit">°C</span>
-          </div>
-          <div className="weather-info">
-            <div
-              className="weather-condition"
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-            >
-              {weatherDetails.icon}
-              <span>{weatherDetails.text}</span>
-            </div>
-            <div className="weather-location">
-              {myWaters.length > 0 ? myWaters[0].name : "Aktueller Standort"}
-            </div>
-          </div>
-        </div>
-        <div className="weather-details-grid">
-          <div className="detail-item">
-            <span className="detail-label">
-              <Wind size={12} /> Wind
-            </span>
-            <span className="detail-value">
-              {Math.round(weather.current.wind)} km/h
-            </span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">
-              <Gauge size={12} /> Druck
-            </span>
-            <span className="detail-value">
-              {Math.round(weather.current.pressure)} hPa
-            </span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">
-              <Fish size={12} /> Biss-Id
-            </span>
-            <span className="detail-value bite-active">
-              {weather.current.biteIndex}%
-            </span>
-          </div>
-        </div>
+      <WeatherCard weather={weather} myWaters={myWaters} />
+
+      {/* Tagebuch Button */}
+      <div style={{ padding: "0 20px" }}>
+        <button
+          style={{
+            width: "100%",
+            padding: "14px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, #1e293b 0%, #16222f 100%)",
+            border: "1px solid var(--border-color)",
+            color: "var(--text-main)",
+            fontWeight: "600",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            cursor: "pointer",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+          }}
+          onClick={() => (window.location.hash = "#/faenge")}
+        >
+          <BookOpen size={16} color="var(--accent-cyan)" />
+          <span>Mein Fangtagebuch öffnen</span>
+        </button>
       </div>
 
-      {/* NEU HINZUGEFÜGT: Waagerechtes Favoriten-Karussell (Wird nur gerendert, wenn Gewässer da sind) */}
-      {myWaters.length > 0 && (
+      {/* Favoriten */}
+      {favoriteWaters.length > 0 && (
         <div className="favorites-section">
           <h3 className="section-title" style={{ marginBottom: "10px" }}>
             Favoriten
           </h3>
           <div className="favorites-carousel">
-            {myWaters.map((water, i) => (
-              <div key={`fav-${water._id || i}`} className="favorite-item-card">
-                <div className="favorite-icon-box">
-                  <Anchor size={16} color="var(--accent-cyan)" />
+            {favoriteWaters.map((water, i) => {
+              const bgClass = getKachelClass(water);
+              const customStyle =
+                water.imageUrl && water.imageUrl.trim() !== ""
+                  ? {
+                      background: `linear-gradient(to bottom, rgba(22, 34, 47, 0.75), rgba(15, 23, 42, 0.55)), url(${water.imageUrl}) center/cover no-repeat`,
+                    }
+                  : {};
+
+              return (
+                <div
+                  key={`fav-${water._id || i}`}
+                  className={`favorite-item-card ${bgClass}`}
+                  onClick={() =>
+                    water._id && navigate(`/gewaesser/${water._id}`)
+                  }
+                  style={{
+                    ...customStyle,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    className="favorite-icon-box"
+                    style={{ position: "relative", zIndex: 2 }}
+                  >
+                    {/* Das neue Kompass-Icon lädt jetzt garantiert ohne Fehler */}
+                    <Compass size={16} color="var(--accent-cyan)" />
+                  </div>
+                  <div
+                    className="favorite-item-info"
+                    style={{ position: "relative", zIndex: 2 }}
+                  >
+                    <h4>{water.name}</h4>
+                    <p>{(water.waterType || "SEE").toUpperCase()}</p>
+                  </div>
                 </div>
-                <div className="favorite-item-info">
-                  <h4>{water.name}</h4>
-                  <p>{water.location || "Gewässer"}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Diagramm */}
-      <div className="chart-card">
-        <div className="chart-header">
-          <div className="chart-title">
-            <Activity size={16} color="var(--accent-cyan)" />
-            <span>Beißverlauf (Live-Wetter)</span>
-          </div>
-          <span className="chart-subtitle">Aktuell: {currentTimeString}</span>
-        </div>
-        <div className="chart-visual-container">
-          <div className="chart-grid-line" style={{ top: "0%" }}></div>
-          <div className="chart-grid-line" style={{ top: "50%" }}></div>
-          <div className="chart-grid-line" style={{ top: "100%" }}></div>
-          <svg
-            viewBox="0 0 100 25"
-            preserveAspectRatio="none"
-            style={{ width: "100%", height: "100%", overflow: "visible" }}
-          >
-            <defs>
-              <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="var(--accent-cyan)"
-                  stopOpacity="0.25"
-                />
-                <stop
-                  offset="100%"
-                  stopColor="var(--accent-cyan)"
-                  stopOpacity="0.0"
-                />
-              </linearGradient>
-            </defs>
-            <path
-              d={`${generateLivePath()} L 100 25 L 0 25 Z`}
-              fill="url(#waveGradient)"
-            />
-            <path
-              d={generateLivePath()}
-              fill="none"
-              stroke="var(--accent-cyan)"
-              strokeWidth="1"
-              strokeLinecap="round"
-            />
-            <line
-              x1={timeX}
-              y1="0"
-              x2={timeX}
-              y2="25"
-              stroke="var(--accent-orange)"
-              strokeWidth="0.6"
-              strokeDasharray="1,1"
-            />
-            <circle
-              cx={timeX}
-              cy={getCurrentY()}
-              r="1.8"
-              fill="var(--accent-orange)"
-            />
-          </svg>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "10px",
-            width: "100%",
-          }}
-        >
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            00:00
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            06:00
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            12:00
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            18:00
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            24:00
-          </span>
-        </div>
-      </div>
+      <BiteChart
+        weather={weather}
+        timeX={timeX}
+        currentTimeString={currentTimeString}
+      />
 
-      {/* Gewässer */}
+      {/* Gewässer-Liste */}
       <h2 className="section-title">Meine Gewässer ({myWaters.length})</h2>
       <div className="waters-list">
         {myWaters.length === 0 ? (
@@ -376,18 +271,96 @@ export default function Home({
             Noch keine Gewässer eingetragen.
           </p>
         ) : (
-          myWaters.map((w, i) => (
-            <div key={w._id || i} className="water-item-card">
-              <div className="water-item-info">
-                <h3>{w.name}</h3>
-                <p>{w.location || "GPS Spot"}</p>
+          myWaters.map((w, i) => {
+            const bgClass = getKachelClass(w);
+            const customStyle =
+              w.imageUrl && w.imageUrl.trim() !== ""
+                ? {
+                    background: `linear-gradient(to right, rgba(11, 19, 31, 0.85) 45%, rgba(11, 19, 31, 0.2)), url(${w.imageUrl}) center/cover no-repeat`,
+                  }
+                : {};
+
+            return (
+              <div
+                key={w._id || i}
+                className={`water-item-card ${bgClass}`}
+                onClick={() => w._id && navigate(`/gewaesser/${w._id}`)}
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  minHeight: "75px",
+                  cursor: "pointer",
+                  ...customStyle,
+                }}
+              >
+                <div
+                  className="water-item-info"
+                  style={{ position: "relative", zIndex: 2 }}
+                >
+                  <h3
+                    style={{
+                      margin: "0 0 2px 0",
+                      color: "#fff",
+                      fontSize: "16px",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                    }}
+                  >
+                    {w.name}
+                  </h3>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "var(--accent-cyan)",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {(w.waterType || "SEE").toUpperCase()}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 2,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    className="btn-heart"
+                    onClick={() =>
+                      w._id && handleToggleFavorite(w._id, !!w.isFavorite)
+                    }
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "8px",
+                    }}
+                  >
+                    <Heart
+                      size={22}
+                      fill={
+                        w.isFavorite ? "var(--accent-orange)" : "transparent"
+                      }
+                      color={
+                        w.isFavorite
+                          ? "var(--accent-orange)"
+                          : "var(--text-muted)"
+                      }
+                    />
+                  </button>
+                </div>
               </div>
-              <div className="water-item-badge">
-                {typeof w.lat === "number" ? w.lat.toFixed(2) : "0.00"} /{" "}
-                {typeof w.lng === "number" ? w.lng.toFixed(2) : "0.00"}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

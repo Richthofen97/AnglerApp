@@ -386,22 +386,14 @@
   background-color: #050911; /* Ultra-deep dark blue fallback */
 }
 
-/* KORRIGIERT: Erzwingt, dass die Erdkugel sich über den gesamten Bildschirm ausbreitet */
+/* Der Canvas-Container für die drehende Erdkugel */
 .globe-background-canvas {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important; /* Nutzt die volle Breite des Browserfensters */
-  height: 100vh !important; /* Nutzt die volle Höhe des Browserfensters */
-  z-index: 1 !important; /* Bleibt stabil im Hintergrund hinter der Kachel */
-  pointer-events: none; /* Verhindert, dass die Kugel Mausklicks blockiert */
-}
-
-/* Canvas-Element selbst im Viewport fixieren */
-.globe-background-canvas canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
 /* Die edle, transparente Login-Kachel (Glassmorphism aus dem Design) */
@@ -523,4 +515,71 @@
 
 .login-toggle-link:hover {
   text-decoration: underline;
+}
+
+/* Erlaubt den Favoriten-Kacheln, die Hintergrundbilder aus dem Quellcode anzuzeigen */
+.favorite-item-card {
+  min-width: 130px !important;
+  width: 130px !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  flex-shrink: 0 !important;
+}
+/* Zwingt das Karussell oben dazu, die JavaScript-Bildvariablen als Hintergrund zu akzeptieren */
+.favorite-item-card {
+  background-color: transparent !important;
+}
+/* ==========================================================================
+   DYNAMISCHE HINTERGRUNDBILDER FÜR DIE GEWÄSSER-KACHELN
+   ========================================================================== */
+
+/* 1. Zuweisung für die Favoriten-Kacheln oben */
+.favorite-item-card.bg-see {
+  background:
+    linear-gradient(to bottom, rgba(22, 34, 47, 0.75), rgba(15, 23, 42, 0.55)),
+    url("./assets/see.jpg") center/cover no-repeat !important;
+}
+.favorite-item-card.bg-fluss {
+  background:
+    linear-gradient(to bottom, rgba(22, 34, 47, 0.75), rgba(15, 23, 42, 0.55)),
+    url("./assets/fluss.jpg") center/cover no-repeat !important;
+}
+.favorite-item-card.bg-meer {
+  background:
+    linear-gradient(to bottom, rgba(22, 34, 47, 0.75), rgba(15, 23, 42, 0.55)),
+    url("./assets/meer.jpg") center/cover no-repeat !important;
+}
+
+/* 2. Zuweisung für die normalen Gewässer-Kacheln unten */
+.water-item-card.bg-see {
+  background:
+    linear-gradient(
+      to right,
+      rgba(11, 19, 31, 0.85) 45%,
+      rgba(11, 19, 31, 0.2)
+    ),
+    url("./assets/see.jpg") center/cover no-repeat !important;
+}
+.water-item-card.bg-fluss {
+  background:
+    linear-gradient(
+      to right,
+      rgba(11, 19, 31, 0.85) 45%,
+      rgba(11, 19, 31, 0.2)
+    ),
+    url("./assets/fluss.jpg") center/cover no-repeat !important;
+}
+.water-item-card.bg-meer {
+  background:
+    linear-gradient(
+      to right,
+      rgba(11, 19, 31, 0.85) 45%,
+      rgba(11, 19, 31, 0.2)
+    ),
+    url("./assets/meer.jpg") center/cover no-repeat !important;
 }

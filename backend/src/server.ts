@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth";
-import waterRoutes from "./routes/waters";
+import waterRoutes from "./routes/waters"; // Angepasst auf deine Routen-Datei
 import weatherRoutes from "./routes/weather";
 
 dotenv.config();
@@ -14,24 +14,21 @@ const app = express();
 /* -----------------------------
    MIDDLEWARE (MUSS ZUERST KOMMEN)
 ------------------------------ */
-// 1. CORS aktivieren, damit das Frontend überhaupt zugreifen darf
 app.use(cors());
-
-// 2. JSON Body Parser aktivieren, um Daten lesen zu können
 app.use(express.json());
 
-// 3. Request Logger
+// Request Logger
 app.use((req, res, next) => {
   console.log("INCOMING:", req.method, req.url);
   next();
 });
 
 /* -----------------------------
-   ROUTES (KORRIGIERT: Erst nach CORS registrieren!)
+   ROUTES
 ------------------------------ */
 app.use("/api/auth", authRoutes);
 app.use("/api/waters", waterRoutes);
-app.use("/api/weather", weatherRoutes); // <-- Hierhin verschoben!
+app.use("/api/weather", weatherRoutes);
 
 /* -----------------------------
    HEALTH CHECK
