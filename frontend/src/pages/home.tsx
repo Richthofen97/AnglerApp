@@ -5,7 +5,8 @@ import HeroImage from "../components/HeroImage";
 import WeatherCard from "../components/WeatherCard";
 import BiteChart from "../components/BiteChart";
 import { LogOut, Heart, BookOpen, Compass } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // Hook-Import bleibt hier oben
+// KORRIGIERT: useLocation hinzugefügt, um Rückkehr von Detailseite zu tracken
+import { useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 
 type WaterSpot = {
@@ -36,8 +37,8 @@ export default function Home({
   email: string;
   onLogout: () => void;
 }) {
-  // ✅ RICHTIG: Hooks MÜSSEN direkt in der ersten Zeile der Hauptfunktion stehen!
   const navigate = useNavigate();
+  const location = useLocation(); // Verfolgt URL-Wechsel
 
   const [myWaters, setMyWaters] = useState<WaterSpot[]>([]);
   const [weather, setWeather] = useState<any>(fallbackWeatherData);
@@ -64,9 +65,12 @@ export default function Home({
     }
   }
 
+  // KORRIGIERT: Lädt die Daten jedes Mal neu, wenn der Nutzer auf diese Ansicht wechselt
   useEffect(() => {
     loadDashboardData();
+  }, [location.key]); // Triggert bei jeder Navigation zurück zur Home-Seite
 
+  useEffect(() => {
     function updateClock() {
       const now = new Date();
       setTimeX(((now.getHours() * 60 + now.getMinutes()) / 1440) * 100);
@@ -176,7 +180,6 @@ export default function Home({
 
       {/* Wetter */}
       <WeatherCard weather={weather} myWaters={myWaters} />
-
       {/* Tagebuch Button */}
       <div style={{ padding: "0 20px" }}>
         <button
@@ -235,7 +238,6 @@ export default function Home({
                     className="favorite-icon-box"
                     style={{ position: "relative", zIndex: 2 }}
                   >
-                    {/* Das neue Kompass-Icon lädt jetzt garantiert ohne Fehler */}
                     <Compass size={16} color="var(--accent-cyan)" />
                   </div>
                   <div
@@ -332,19 +334,22 @@ export default function Home({
                   <button
                     className="btn-heart"
                     onClick={(e) => {
-                      e.preventDefault(); // Verhindert mobiles Fehlverhalten/Doppel-Trigger
-                      e.stopPropagation(); // Verhindert, dass die Detailseite geöffnet wird
+                      e.preventDefault(); // KORRIGIERT: Blockiert den Doppel-Trigger auf Handys
+                      e.stopPropagation(); // Verhindert ungewolltes Navigieren beim Herzklick
                       if (w._id) {
                         handleToggleFavorite(w._id, !!w.isFavorite);
                       }
                     }}
-                    onTouchStart={(e) => e.stopPropagation()} // Blockiert mobiles Event-Bubbling extra
+                    onTouchStart={(e) => {
+                      e.preventDefault(); // KORRIGIERT: Unterdrückt das native mobile Touch-Verhalten zusätzlich
+                      e.stopPropagation();
+                    }}
                     style={{
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
                       padding: "8px",
-                      display: "flex", // Zentriert das Icon sauber
+                      display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}

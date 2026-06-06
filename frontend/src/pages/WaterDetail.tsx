@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getWaters } from "../api/waters";
+import { getWaters, deleteWater } from "../api/waters";
 import {
   ArrowLeft,
   MapPin,
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import "../App.css";
 
-// Lokale Bilder für den Fallback importieren
+// Deine originalen, lokalen Bildimports
 import seeBg from "../assets/see.jpg";
 import flussBg from "../assets/fluss.jpg";
 import meerBg from "../assets/meer.jpg";
@@ -52,7 +52,6 @@ export default function WaterDetail() {
     loadDetailData();
   }, [id]);
 
-  // Funktion zum Löschen des Gewässers
   const handleDelete = async () => {
     if (!water?._id) return;
 
@@ -62,8 +61,7 @@ export default function WaterDetail() {
 
     if (confirmDelete) {
       try {
-        console.log(`Gewässer ${water._id} wurde gelöscht.`);
-        // Nach erfolgreichem Löschen zurück zur Liste navigieren
+        await deleteWater(water._id);
         navigate(-1);
       } catch (err) {
         console.error("Fehler beim Löschen des Gewässers:", err);
@@ -72,30 +70,33 @@ export default function WaterDetail() {
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div style={{ color: "var(--text-muted)", padding: 20 }}>
         Lade Gewässerdetails...
       </div>
     );
-  if (!water)
+  }
+  if (!water) {
     return (
       <div style={{ color: "var(--text-muted)", padding: 20 }}>
         Gewässer nicht gefunden.
       </div>
     );
-
-  // Bild-Ermittlung
-  let bgUrl = water.imageUrl || "";
-  if (!bgUrl) {
-    const typ = (water.waterType || "see").toLowerCase();
-    if (typ === "fluss") bgUrl = flussBg;
-    else if (typ === "meer") bgUrl = meerBg;
-    else bgUrl = seeBg;
   }
 
-  // KORRIGIERT: Offizielles Google Maps API Format erzwingt das Öffnen der App
-  const googleMapsUrl = `https://google.com{water.lat},${water.lng}`;
+  // KORRIGIERT: Filtert leere Strings exakt wie auf deiner Home-Seite heraus
+  let currentHeaderImage = "";
+
+  if (water.imageUrl && water.imageUrl.trim() !== "") {
+    currentHeaderImage = water.imageUrl;
+  } else {
+    const typ = (water.waterType || "see").toLowerCase().trim();
+    if (typ === "fluss") currentHeaderImage = flussBg;
+    else if (typ === "meer") currentHeaderImage = meerBg;
+    else currentHeaderImage = seeBg;
+  }
+
   return (
     <div className="dashboard-container" style={{ paddingBottom: "30px" }}>
       {/* Großer bebilderter Hero-Header für das Gewässer */}
@@ -104,7 +105,18 @@ export default function WaterDetail() {
         style={{
           position: "relative",
           height: "260px",
-          backgroundImage: `linear-gradient(to bottom, rgba(11, 19, 31, 0.3) 0%, rgba(11, 19, 31, 0.95) 100%), url(${bgUrl})`,
+          // KORRIGIERT: Ignoriert URLs aus der DB, die nicht auf typische Bildendungen (.jpg, .png, etc.) enden!
+          backgroundImage: `linear-gradient(to bottom, rgba(11, 19, 31, 0.3) 0%, rgba(11, 19, 31, 0.95) 100%), url(${
+            water.imageUrl &&
+            water.imageUrl.trim() !== "" &&
+            /\.(jpeg|jpg|gif|png|webp)$/i.test(water.imageUrl.trim())
+              ? water.imageUrl
+              : (water.waterType || "see").toLowerCase().trim() === "fluss"
+                ? flussBg
+                : (water.waterType || "see").toLowerCase().trim() === "meer"
+                  ? meerBg
+                  : seeBg
+          })`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           display: "flex",
@@ -122,10 +134,9 @@ export default function WaterDetail() {
             alignItems: "center",
             width: "100%",
             position: "relative",
-            zIndex: 99, // Garantiert, dass die Buttons über dem Bild liegen
+            zIndex: 99,
           }}
         >
-          {/* Zurück-Button */}
           <button
             onClick={() => navigate(-1)}
             style={{
@@ -146,7 +157,6 @@ export default function WaterDetail() {
             <ArrowLeft size={18} />
           </button>
 
-          {/* Lösch-Button */}
           <button
             onClick={handleDelete}
             title="Gewässer löschen"
@@ -206,7 +216,7 @@ export default function WaterDetail() {
         </div>
       </div>
 
-      {/* Infokarte mit Google-Maps-Link */}
+      {/* Infokarte mit der korrekten ://google.com Subdomain */}
       <div
         className="weather-card"
         style={{
@@ -225,23 +235,33 @@ export default function WaterDetail() {
         >
           <MapPin size={16} color="var(--accent-cyan)" /> Standorts-Koordinaten
         </h3>
-        <a
-          href={googleMapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // ://google.com als Subdomain verhindert das Abschneiden im Browser-Kern
+            const targetUrl =
+              "https://maps.google.com/?q=" + water.lat + "," + water.lng;
+            window.open(targetUrl, "_blank", "noopener,noreferrer");
+          }}
           style={{
+            width: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            textDecoration: "none",
             background: "rgba(11, 19, 31, 0.5)",
             padding: "12px 16px",
             borderRadius: "12px",
             border: "1px solid var(--border-color)",
             color: "var(--text-main)",
-            transition: "border-color 0.2s",
+            cursor: "pointer",
+            textAlign: "left",
+            boxSizing: "border-box",
+            position: "relative",
+            zIndex: 99999,
           }}
-          className="maps-link-hover"
         >
           <span
             style={{
@@ -264,7 +284,7 @@ export default function WaterDetail() {
             <span>In Google Maps öffnen</span>
             <ExternalLink size={12} />
           </div>
-        </a>
+        </button>
       </div>
 
       {/* Interaktives Notizfeld */}
@@ -330,14 +350,7 @@ export default function WaterDetail() {
         >
           <Fish size={16} color="var(--accent-cyan)" /> Fänge an diesem Spot
         </h3>
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            overflow: "none",
-            padding: "10px 0 0 0",
-          }}
-        >
+        <div style={{ display: "flex", gap: "10px", padding: "10px 0 0 0" }}>
           <p
             style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}
           >
