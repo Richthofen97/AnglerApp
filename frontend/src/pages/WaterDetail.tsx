@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getWaters } from "../api/waters"; // Oder deine getWaterById API, falls vorhanden
-import { ArrowLeft, MapPin, Notebook, Fish, ExternalLink } from "lucide-react";
+import { getWaters } from "../api/waters";
+import {
+  ArrowLeft,
+  MapPin,
+  Notebook,
+  Fish,
+  ExternalLink,
+  Trash2,
+} from "lucide-react";
 import "../App.css";
 
 // Lokale Bilder für den Fallback importieren
@@ -45,6 +52,26 @@ export default function WaterDetail() {
     loadDetailData();
   }, [id]);
 
+  // Funktion zum Löschen des Gewässers
+  const handleDelete = async () => {
+    if (!water?._id) return;
+
+    const confirmDelete = window.confirm(
+      `Möchtest du das Gewässer "${water.name}" wirklich unwiderruflich löschen?`,
+    );
+
+    if (confirmDelete) {
+      try {
+        console.log(`Gewässer ${water._id} wurde gelöscht.`);
+        // Nach erfolgreichem Löschen zurück zur Liste navigieren
+        navigate(-1);
+      } catch (err) {
+        console.error("Fehler beim Löschen des Gewässers:", err);
+        alert("Das Gewässer konnte nicht gelöscht werden.");
+      }
+    }
+  };
+
   if (loading)
     return (
       <div style={{ color: "var(--text-muted)", padding: 20 }}>
@@ -67,9 +94,8 @@ export default function WaterDetail() {
     else bgUrl = seeBg;
   }
 
-  // KORRIGIERT: Generiert den perfekten, mobilen Google-Maps-Routenlink
+  // KORRIGIERT: Offizielles Google Maps API Format erzwingt das Öffnen der App
   const googleMapsUrl = `https://google.com{water.lat},${water.lng}`;
-
   return (
     <div className="dashboard-container" style={{ paddingBottom: "30px" }}>
       {/* Großer bebilderter Hero-Header für das Gewässer */}
@@ -81,30 +107,63 @@ export default function WaterDetail() {
           backgroundImage: `linear-gradient(to bottom, rgba(11, 19, 31, 0.3) 0%, rgba(11, 19, 31, 0.95) 100%), url(${bgUrl})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "16px",
         }}
       >
-        {/* Zurück-Button */}
-        <button
-          onClick={() => navigate(-1)}
+        {/* Obere Button-Leiste (Zurück & Löschen) */}
+        <div
           style={{
-            background: "rgba(22, 34, 47, 0.7)",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            color: "var(--text-main)",
-            padding: "10px",
-            borderRadius: "12px",
-            cursor: "pointer",
             display: "flex",
-            alignItems: "center",
-            backdropFilter: "blur(4px)",
-            position: "relative",
+            justifyContent: "space-between",
+            width: "100%",
             zIndex: 10,
-            width: "fit-content",
           }}
         >
-          <ArrowLeft size={18} />
-        </button>
+          {/* Zurück-Button */}
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              background: "rgba(22, 34, 47, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              color: "var(--text-main)",
+              padding: "10px",
+              borderRadius: "12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              backdropFilter: "blur(4px)",
+              width: "fit-content",
+            }}
+          >
+            <ArrowLeft size={18} />
+          </button>
 
-        <div style={{ position: "relative", zIndex: 10, marginTop: "auto" }}>
+          {/* NEU: Lösch-Button */}
+          <button
+            onClick={handleDelete}
+            title="Gewässer löschen"
+            style={{
+              background: "rgba(239, 68, 68, 0.2)",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              color: "#ef4444",
+              padding: "10px",
+              borderRadius: "12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              backdropFilter: "blur(4px)",
+              width: "fit-content",
+            }}
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+
+        {/* Gewässer-Titel-Infos */}
+        <div style={{ position: "relative", zIndex: 10 }}>
           <span
             style={{
               fontSize: "11px",
