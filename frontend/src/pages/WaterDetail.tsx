@@ -111,6 +111,7 @@ export default function WaterDetail() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "16px",
+          boxSizing: "border-box",
         }}
       >
         {/* Obere Button-Leiste (Zurück & Löschen) */}
@@ -118,15 +119,17 @@ export default function WaterDetail() {
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             width: "100%",
-            zIndex: 10,
+            position: "relative",
+            zIndex: 99, // Garantiert, dass die Buttons über dem Bild liegen
           }}
         >
           {/* Zurück-Button */}
           <button
             onClick={() => navigate(-1)}
             style={{
-              background: "rgba(22, 34, 47, 0.7)",
+              background: "rgba(22, 34, 47, 0.8)",
               border: "1px solid rgba(255, 255, 255, 0.2)",
               color: "var(--text-main)",
               padding: "10px",
@@ -135,19 +138,21 @@ export default function WaterDetail() {
               display: "flex",
               alignItems: "center",
               backdropFilter: "blur(4px)",
-              width: "fit-content",
+              width: "40px",
+              height: "40px",
+              justifyContent: "center",
             }}
           >
             <ArrowLeft size={18} />
           </button>
 
-          {/* NEU: Lösch-Button */}
+          {/* Lösch-Button */}
           <button
             onClick={handleDelete}
             title="Gewässer löschen"
             style={{
-              background: "rgba(239, 68, 68, 0.2)",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
+              background: "rgba(239, 68, 68, 0.25)",
+              border: "1px solid rgba(239, 68, 68, 0.5)",
               color: "#ef4444",
               padding: "10px",
               borderRadius: "12px",
@@ -155,7 +160,9 @@ export default function WaterDetail() {
               display: "flex",
               alignItems: "center",
               backdropFilter: "blur(4px)",
-              width: "fit-content",
+              width: "40px",
+              height: "40px",
+              justifyContent: "center",
             }}
           >
             <Trash2 size={18} />
