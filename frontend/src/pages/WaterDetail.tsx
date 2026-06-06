@@ -209,7 +209,7 @@ export default function WaterDetail() {
         </div>
       </div>
 
-      {/* Infokarte mit dem mobilen App-Deep-Link */}
+      {/* Infokarte mit nativer Smartphone-App-Weiche */}
       <div
         className="weather-card"
         style={{
@@ -235,12 +235,37 @@ export default function WaterDetail() {
             e.preventDefault();
             e.stopPropagation();
 
-            // KORRIGIERT: targetUrl nutzt das universelle Such-API-Format
-            const targetUrl =
-              "https://google.com" + water.lat + "," + water.lng;
+            const lat = water.lat;
+            const lng = water.lng;
+            const userAgent =
+              navigator.userAgent || navigator.vendor || (window as any).opera;
 
-            // KORRIGIERT: window.location.href zwingt das Smartphone, die native Maps-App direkt anzusteuern
-            window.location.href = targetUrl;
+            // 1. WEICHE: Für Apple-Geräte (iPhone, iPad)
+            if (
+              /iPad|iPhone|iPod/.test(userAgent) &&
+              !(window as any).MSStream
+            ) {
+              // Erzwingt den Start der offiziellen Google Maps App auf iOS
+              window.location.href = `comgooglemaps://?q=${lat},${lng}&zoom=14`;
+
+              // Fallback: Falls Google Maps nicht installiert ist, öffnet es nach 1 Sekunde im Browser
+              setTimeout(() => {
+                window.location.href = `https://google.com{lat},${lng}`;
+              }, 1000);
+            }
+            // 2. WEICHE: Für Android-Geräte
+            else if (/android/i.test(userAgent)) {
+              // Der native Android-Systembefehl öffnet direkt die Maps-App
+              window.location.href = `geo:${lat},${lng}?q=${lat},${lng}`;
+            }
+            // 3. WEICHE: Für Desktop-PCs und Laptops
+            else {
+              window.open(
+                `https://google.com{lat},${lng}`,
+                "_blank",
+                "noopener,noreferrer",
+              );
+            }
           }}
           style={{
             width: "100%",
