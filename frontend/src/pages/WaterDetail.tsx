@@ -209,7 +209,7 @@ export default function WaterDetail() {
         </div>
       </div>
 
-      {/* Infokarte mit der korrekten maps.google Subdomain */}
+      {/* Infokarte mit dem mobilen App-Deep-Link */}
       <div
         className="weather-card"
         style={{
@@ -234,9 +234,13 @@ export default function WaterDetail() {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+
+            // KORRIGIERT: targetUrl nutzt das universelle Such-API-Format
             const targetUrl =
               "https://google.com" + water.lat + "," + water.lng;
-            window.open(targetUrl, "_blank", "noopener,noreferrer");
+
+            // KORRIGIERT: window.location.href zwingt das Smartphone, die native Maps-App direkt anzusteuern
+            window.location.href = targetUrl;
           }}
           style={{
             width: "100%",
