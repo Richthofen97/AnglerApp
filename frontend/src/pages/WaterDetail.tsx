@@ -85,11 +85,15 @@ export default function WaterDetail() {
     );
   }
 
-  // KORRIGIERT: Filtert leere Strings exakt wie auf deiner Home-Seite heraus
+  // KORRIGIERT: Ermittelt den Pfad und filtert kaputte/leere Datenbankeinträge aus
   let currentHeaderImage = "";
 
-  if (water.imageUrl && water.imageUrl.trim() !== "") {
-    currentHeaderImage = water.imageUrl;
+  if (
+    water.imageUrl &&
+    water.imageUrl.trim() !== "" &&
+    /\.(jpeg|jpg|gif|png|webp)$/i.test(water.imageUrl.trim())
+  ) {
+    currentHeaderImage = water.imageUrl.trim();
   } else {
     const typ = (water.waterType || "see").toLowerCase().trim();
     if (typ === "fluss") currentHeaderImage = flussBg;
@@ -105,18 +109,8 @@ export default function WaterDetail() {
         style={{
           position: "relative",
           height: "260px",
-          // KORRIGIERT: Ignoriert URLs aus der DB, die nicht auf typische Bildendungen (.jpg, .png, etc.) enden!
-          backgroundImage: `linear-gradient(to bottom, rgba(11, 19, 31, 0.3) 0%, rgba(11, 19, 31, 0.95) 100%), url(${
-            water.imageUrl &&
-            water.imageUrl.trim() !== "" &&
-            /\.(jpeg|jpg|gif|png|webp)$/i.test(water.imageUrl.trim())
-              ? water.imageUrl
-              : (water.waterType || "see").toLowerCase().trim() === "fluss"
-                ? flussBg
-                : (water.waterType || "see").toLowerCase().trim() === "meer"
-                  ? meerBg
-                  : seeBg
-          })`,
+          // REPARIERT: Nutzt jetzt die oben sauber deklarierte Variable! Schließt TS-Fehler aus.
+          backgroundImage: `linear-gradient(to bottom, rgba(11, 19, 31, 0.3) 0%, rgba(11, 19, 31, 0.95) 100%), url(${currentHeaderImage})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           display: "flex",
@@ -156,7 +150,6 @@ export default function WaterDetail() {
           >
             <ArrowLeft size={18} />
           </button>
-
           <button
             onClick={handleDelete}
             title="Gewässer löschen"
@@ -216,7 +209,7 @@ export default function WaterDetail() {
         </div>
       </div>
 
-      {/* Infokarte mit der korrekten ://google.com Subdomain */}
+      {/* Infokarte mit der korrekten maps.google Subdomain */}
       <div
         className="weather-card"
         style={{
@@ -241,9 +234,8 @@ export default function WaterDetail() {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // ://google.com als Subdomain verhindert das Abschneiden im Browser-Kern
             const targetUrl =
-              "https://maps.google.com/?q=" + water.lat + "," + water.lng;
+              "https://google.com" + water.lat + "," + water.lng;
             window.open(targetUrl, "_blank", "noopener,noreferrer");
           }}
           style={{
