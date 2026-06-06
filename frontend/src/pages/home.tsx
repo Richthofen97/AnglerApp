@@ -331,14 +331,22 @@ export default function Home({
                 >
                   <button
                     className="btn-heart"
-                    onClick={() =>
-                      w._id && handleToggleFavorite(w._id, !!w.isFavorite)
-                    }
+                    onClick={(e) => {
+                      e.preventDefault(); // Verhindert mobiles Fehlverhalten/Doppel-Trigger
+                      e.stopPropagation(); // Verhindert, dass die Detailseite geöffnet wird
+                      if (w._id) {
+                        handleToggleFavorite(w._id, !!w.isFavorite);
+                      }
+                    }}
+                    onTouchStart={(e) => e.stopPropagation()} // Blockiert mobiles Event-Bubbling extra
                     style={{
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
                       padding: "8px",
+                      display: "flex", // Zentriert das Icon sauber
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Heart
