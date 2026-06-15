@@ -16,7 +16,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import "../app.css";
+import "../App.css";
 
 type WaterSpot = {
   _id?: string;
