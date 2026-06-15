@@ -155,7 +155,7 @@ export default function Map() {
         setNearbyWaters([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Fehler beim Klicken auf die Karte:", err);
     }
   }
 
@@ -517,34 +517,7 @@ export default function Map() {
                       >
                         {searchQuery ? "🔍 Ergebnisse:" : "🗺️ Alle Gewässer:"}
                       </span>
-                      {!searchQuery && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedWater({
-                              _id: "default",
-                              name: "Allgemeines Gewässer",
-                              waterType: "see",
-                            });
-                            setIsSearching(false);
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            background: "rgba(246, 115, 22, 0.1)",
-                            border: "1px dashed var(--accent-orange)",
-                            borderRadius: "4px",
-                            padding: "4px",
-                            color: "var(--accent-orange)",
-                            fontSize: "11px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <HelpCircle size={10} /> Default-Gewässer
-                        </button>
-                      )}
+
                       {(searchQuery ? filteredWaters : allFixedWaters).map(
                         (w) => (
                           <button
