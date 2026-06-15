@@ -3,52 +3,70 @@ import Water from "../models/Water";
 
 const router = express.Router();
 
-// 1. GET all fixed waters (Gibt alle fixen Gewässer alphabetisch sortiert zurück)
+// 1. GET: Holt entweder die 5 nächsten Gewässer ODER alle Gewässer (für die Übersicht)
 router.get("/", async (req, res) => {
+  const { lat, lng } = req.query;
+
   try {
-    const waters = await Water.find().sort({ name: 1 });
-    res.json(waters);
+    // Wenn GPS-Daten übergeben wurden, berechne die 5 nächsten Gewässer
+    if (lat && lng) {
+      const latitude = parseFloat(lat as string);
+      const longitude = parseFloat(lng as string);
+
+      const nearbyWaters = await Water.find({
+        location: {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [longitude, latitude], // Wichtig bei MongoDB: [lng, lat]
+            },
+          },
+        },
+      }).limit(5); // Streng limitiert auf die 5 nächsten Treffer
+
+      return res.json(nearbyWaters);
+    }
+
+    // Wenn KEINE Koordinaten übergeben wurden, schicke alle Gewässer alphabetisch (für die Übersicht)
+    const allWaters = await Water.find().sort({ name: 1 });
+    res.json(allWaters);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// 2. SEED-Route (KORRIGIERT: Speichert die echten GPS-Punkte für die Umkreissuche!)
+// 2. SEED-Route (Bleibt als Absicherung, falls du deine Datenbank befüllen musst)
 router.get("/seed", async (req, res) => {
   try {
-    await Water.deleteMany({}); // Löscht die alten Einträge ohne Koordinaten
-
-    const defaultWaters = await Water.create([
+    await Water.deleteMany({});
+    const defaultWaters = await Water.insertMany([
       {
-        name: "Main (Abschnitt Bamberg)",
+        name: "Main-Donau-Kanal",
         waterType: "fluss",
-        location: { type: "Point", coordinates: [10.8861, 49.8988] }, // [Longitude, Latitude]
+        location: { type: "Point", coordinates: [11.0767, 49.4521] },
+      },
+      {
+        name: "Rhein",
+        waterType: "fluss",
+        location: { type: "Point", coordinates: [7.5889, 50.3569] },
+      },
+      {
+        name: "Ostsee",
+        waterType: "meer",
+        location: { type: "Point", coordinates: [11.0, 54.0] },
       },
       {
         name: "Baggersee Burgebrach",
         waterType: "see",
-        location: { type: "Point", coordinates: [10.7422, 49.8259] },
+        location: { type: "Point", coordinates: [10.8262, 49.8259] },
       },
       {
-        name: "Regnitz (Forchheim)",
-        waterType: "fluss",
-        location: { type: "Point", coordinates: [11.0539, 49.7214] },
-      },
-      {
-        name: "Großer Brombachsee",
+        name: "Bodensee",
         waterType: "see",
-        location: { type: "Point", coordinates: [10.9231, 49.1345] },
-      },
-      {
-        name: "Ostsee (Kieler Bucht)",
-        waterType: "meer",
-        location: { type: "Point", coordinates: [10.1523, 54.3541] },
+        location: { type: "Point", coordinates: [9.4794, 47.6355] },
       },
     ]);
-    res.json({
-      message: "Fixe Gewässer mit Geodaten erfolgreich eingespeist! 🎣",
-      data: defaultWaters,
-    });
+    res.json({ message: "Gewässer geladen!", data: defaultWaters });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
