@@ -5,10 +5,10 @@ const CLOUDINARY_URL = "https://cloudinary.com";
 const UPLOAD_PRESET = "ml_default";
 
 /* ==========================================================================
-   1. FIXE HAUPTGEWÄSSER (NEU)
+   1. FIXE HAUPTGEWÄSSER
    ========================================================================== */
 
-// KORRIGIERT: Holt die Liste der fixen Gewässer mitsamt optionaler Umkreissuche!
+// Holt die Liste der echten Live-Gewässer via OpenStreetMap aus dem Backend!
 export async function getFixedWaters(lat?: number, lng?: number) {
   let url = `${API_URL}/api/waters`;
   if (lat && lng) {
@@ -20,10 +20,10 @@ export async function getFixedWaters(lat?: number, lng?: number) {
 }
 
 /* ==========================================================================
-   2. SPOTS (Nutzen die exakt gleichen alten Namen wie vor 2 Stunden!)
+   2. SPOTS
    ========================================================================== */
 
-// Ruft alle Spots ab (Das Frontend denkt, es wären die alten Gewässer)
+// Ruft alle Spots ab
 export async function getWaters() {
   const res = await fetch(`${API_URL}/api/spots`);
   if (!res.ok) throw new Error("Fehler beim Laden der Spots");
@@ -61,13 +61,13 @@ export async function updateWaterNotes(id: string, notes: string) {
   return await res.json();
 }
 
-// Erstellt einen neuen Spot und verknüpft ihn mit dem fixen Gewässer (waterId)
+// KORRIGIERT: Erstellt einen neuen Spot und schickt Gewässer-Details für die OSM-Registrierung mit!
 export async function createWater(
   name: string,
   location: string,
   lat: number,
   lng: number,
-  waterType: string,
+  waterType: any, // Typ auf any geändert, da hier nun das gewählte Gewässer-Objekt reinkommt
   imageFile: File | null,
 ) {
   let finalImageUrl = "";
@@ -92,17 +92,25 @@ export async function createWater(
     }
   }
 
-  // Schickt die Daten an dein neues /api/spots Backend
+  // Extrahiert die Daten, je nachdem, ob waterType ein Objekt (OSM) oder ein String ("default") ist
+  const targetWaterId = waterType && waterType._id ? waterType._id : waterType;
+  const targetWaterName = waterType && waterType.name ? waterType.name : "";
+  const targetWaterType =
+    waterType && waterType.waterType ? waterType.waterType : "see";
+
+  // Schickt alle Daten an das /api/spots Backend
   const res = await fetch(`${API_URL}/api/spots`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      waterId: waterType, // Schiebt die übergebene ID trickreich in das richtige Feld
+      waterId: targetWaterId,
       name,
       location,
       lat,
       lng,
       imageUrl: finalImageUrl,
+      waterName: targetWaterName, // Wichtig für die automatische Datenbank-Registrierung im Backend
+      waterType: targetWaterType, // Übermittelt den Typ (fluss/see/meer)
     }),
   });
 

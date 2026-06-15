@@ -67,7 +67,7 @@ export default function Map() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showSidebar, setShowSidebar] = useState<boolean>(true);
+  const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
   // --- DOM- & Leaflet-Referenzen ---
   const newMarkerRef = useRef<L.Marker | null>(null);
@@ -499,11 +499,13 @@ export default function Map() {
                     </div>
                     <div
                       style={{
-                        maxHeight: "110px",
-                        overflowY: "auto",
+                        maxHeight: "135px", // Etwas höher für mehr Sichtbarkeit
+                        overflowY: "scroll", // Erzwingt die Scrollbar bei Bedarf
+                        paddingRight: "4px", // Verhindert, dass Text unter die Scrollbar rutscht
                         display: "flex",
                         flexDirection: "column",
-                        gap: "2px",
+                        gap: "4px",
+                        marginBottom: "8px", // Schafft Luft nach unten zum Foto-Upload
                       }}
                     >
                       <span
