@@ -583,3 +583,22 @@
     ),
     url("./assets/meer.jpg") center/cover no-repeat !important;
 }
+
+/* Macht das Land edel dunkel und lässt alle Gewässer hellblau herausstechen */
+.angler-pro-dark-ocean {
+  filter: grayscale(100%) invert(90%) hue-rotate(195deg) brightness(90%)
+    contrast(120%);
+}
+
+/* Verhindert, dass die Karte beim Laden im Hintergrund weiß aufblitzt */
+.leaflet-container {
+  background: #0d1622 !important;
+}
+
+/* Hält deine Leaflet-Popups im modernen, dunklen Design deiner restlichen App */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #16222f !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}

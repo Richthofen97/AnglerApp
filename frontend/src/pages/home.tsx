@@ -2,12 +2,21 @@ import { useEffect, useState } from "react";
 import { getWaters, toggleFavorite } from "../api/waters";
 import { getLiveWeather } from "../api/weather";
 import HeroImage from "../components/HeroImage";
-import WeatherCard from "../components/WeatherCard";
-import BiteChart from "../components/BiteChart";
-import { LogOut, Heart, BookOpen, Compass } from "lucide-react";
-// KORRIGIERT: useLocation hinzugefügt, um Rückkehr von Detailseite zu tracken
-import { useNavigate, useLocation } from "react-router-dom";
-import "../App.css";
+import {
+  CloudSun,
+  Wind,
+  Gauge,
+  Fish,
+  LogOut,
+  Activity,
+  Cloud,
+  Sun,
+  CloudRain,
+  Compass,
+  Heart,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import "../app.css";
 
 type WaterSpot = {
   _id?: string;
@@ -15,7 +24,7 @@ type WaterSpot = {
   location: string;
   lat: number;
   lng: number;
-  waterType?: string;
+  waterId?: { name: string; waterType: string };
   imageUrl?: string;
   isFavorite?: boolean;
 };
@@ -38,23 +47,21 @@ export default function Home({
   onLogout: () => void;
 }) {
   const navigate = useNavigate();
-  const location = useLocation(); // Verfolgt URL-Wechsel
-
-  const [myWaters, setMyWaters] = useState<WaterSpot[]>([]);
+  const [mySpots, setMySpots] = useState<WaterSpot[]>([]);
   const [weather, setWeather] = useState<any>(fallbackWeatherData);
   const [timeX, setTimeX] = useState<number>(50);
   const [currentTimeString, setCurrentTimeString] = useState<string>("");
 
   async function loadDashboardData() {
     try {
-      const watersData = await getWaters();
-      const validWaters = Array.isArray(watersData) ? watersData : [];
-      setMyWaters(validWaters);
+      const spotsData = await getWaters();
+      const validSpots = Array.isArray(spotsData) ? spotsData : [];
+      setMySpots(validSpots);
 
       const lat =
-        validWaters.length > 0 && validWaters[0] ? validWaters[0].lat : 49.4521;
+        validSpots.length > 0 && validSpots[0] ? validSpots[0].lat : 49.4521;
       const lng =
-        validWaters.length > 0 && validWaters[0] ? validWaters[0].lng : 11.0767;
+        validSpots.length > 0 && validSpots[0] ? validSpots[0].lng : 11.0767;
 
       const weatherData = await getLiveWeather(lat, lng);
       if (weatherData && weatherData.current) {
@@ -65,12 +72,9 @@ export default function Home({
     }
   }
 
-  // KORRIGIERT: Lädt die Daten jedes Mal neu, wenn der Nutzer auf diese Ansicht wechselt
   useEffect(() => {
     loadDashboardData();
-  }, [location.key]); // Triggert bei jeder Navigation zurück zur Home-Seite
 
-  useEffect(() => {
     function updateClock() {
       const now = new Date();
       setTimeX(((now.getHours() * 60 + now.getMinutes()) / 1440) * 100);
@@ -87,7 +91,7 @@ export default function Home({
   async function handleToggleFavorite(id: string, currentStatus: boolean) {
     try {
       const newStatus = !currentStatus;
-      setMyWaters((p) =>
+      setMySpots((p) =>
         p.map((w) => (w._id === id ? { ...w, isFavorite: newStatus } : w)),
       );
       await toggleFavorite(id, newStatus);
@@ -97,15 +101,41 @@ export default function Home({
     }
   }
 
-  const favoriteWaters = myWaters.filter((w) => w.isFavorite === true);
-
-  const getKachelClass = (water: WaterSpot) => {
-    const typ = (water.waterType || "see").toLowerCase().trim();
-    if (typ === "fluss") return "bg-fluss";
-    if (typ === "meer") return "bg-meer";
-    return "bg-see";
+  const getWeatherDetails = (code: number) => {
+    if (code === 0)
+      return {
+        text: "Klar",
+        icon: <Sun size={20} color="var(--accent-cyan)" />,
+      };
+    if (code >= 1 && code <= 3)
+      return {
+        text: "Bewölkt",
+        icon: <CloudSun size={20} color="var(--accent-cyan)" />,
+      };
+    if (code >= 45 && code <= 48)
+      return {
+        text: "Nebel",
+        icon: <Cloud size={20} color="var(--text-muted)" />,
+      };
+    return {
+      text: "Regen",
+      icon: <CloudRain size={20} color="var(--accent-cyan)" />,
+    };
   };
 
+  const generateLivePath = () =>
+    weather.hourlyBiteIndex
+      .map(
+        (v: number, h: number) =>
+          `${h === 0 ? "M" : "L"} ${(h / 23) * 100} ${22 - ((v - 10) / 90) * 16}`,
+      )
+      .join(" ");
+
+  const getCurrentY = () =>
+    22 -
+    (((weather.hourlyBiteIndex[new Date().getHours()] || 50) - 10) / 90) * 16;
+  const weatherDetails = getWeatherDetails(weather.current.code);
+  const favoriteWaters = mySpots.filter((w) => w.isFavorite === true);
   return (
     <div className="dashboard-container">
       {/* Header */}
@@ -179,33 +209,56 @@ export default function Home({
       </div>
 
       {/* Wetter */}
-      <WeatherCard weather={weather} myWaters={myWaters} />
-      {/* Tagebuch Button */}
-      <div style={{ padding: "0 20px" }}>
-        <button
-          style={{
-            width: "100%",
-            padding: "14px",
-            borderRadius: "14px",
-            background: "linear-gradient(135deg, #1e293b 0%, #16222f 100%)",
-            border: "1px solid var(--border-color)",
-            color: "var(--text-main)",
-            fontWeight: "600",
-            fontSize: "14px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
-          }}
-          onClick={() => (window.location.hash = "#/faenge")}
-        >
-          <BookOpen size={16} color="var(--accent-cyan)" />
-          <span>Mein Fangtagebuch öffnen</span>
-        </button>
+      <div className="weather-card">
+        <div className="weather-main">
+          <div className="weather-temp-box">
+            <span className="weather-degree">
+              {Math.round(weather.current.temp)}
+            </span>
+            <span className="weather-unit">°C</span>
+          </div>
+          <div className="weather-info">
+            <div
+              className="weather-condition"
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              {weatherDetails.icon}
+              <span>{weatherDetails.text}</span>
+            </div>
+            <div className="weather-location">
+              {mySpots.length > 0 && mySpots[0].waterId
+                ? mySpots[0].waterId.name
+                : "Aktueller Standort"}
+            </div>
+          </div>
+        </div>
+        <div className="weather-details-grid">
+          <div className="detail-item">
+            <span className="detail-label">
+              <Wind size={12} /> Wind
+            </span>
+            <span className="detail-value">
+              {Math.round(weather.current.wind)} km/h
+            </span>
+          </div>
+          <div className="detail-item">
+            <span className="detail-label">
+              <Gauge size={12} /> Druck
+            </span>
+            <span className="detail-value">
+              {Math.round(weather.current.pressure)} hPa
+            </span>
+          </div>
+          <div className="detail-item">
+            <span className="detail-label">
+              <Fish size={12} /> Biss-Id
+            </span>
+            <span className="detail-value bite-active">
+              {weather.current.biteIndex}%
+            </span>
+          </div>
+        </div>
       </div>
-
       {/* Favoriten */}
       {favoriteWaters.length > 0 && (
         <div className="favorites-section">
@@ -213,24 +266,25 @@ export default function Home({
             Favoriten
           </h3>
           <div className="favorites-carousel">
-            {favoriteWaters.map((water, i) => {
-              const bgClass = getKachelClass(water);
-              const customStyle =
-                water.imageUrl && water.imageUrl.trim() !== ""
-                  ? {
-                      background: `linear-gradient(to bottom, rgba(22, 34, 47, 0.75), rgba(15, 23, 42, 0.55)), url(${water.imageUrl}) center/cover no-repeat`,
-                    }
-                  : {};
+            {favoriteWaters.map((spot, i) => {
+              const currentType = (
+                spot.waterId?.waterType || "see"
+              ).toLowerCase();
+
+              // KORREKTUR: Wenn kein Bild hochgeladen wurde, nutzen wir ein absolut stabiles, garantiertes Angel-Hintergrundbild
+              const bgUrl =
+                spot.imageUrl && spot.imageUrl.trim() !== ""
+                  ? spot.imageUrl
+                  : "https://unsplash.com"; // Zuverlässiges Fallback-Bild
 
               return (
                 <div
-                  key={`fav-${water._id || i}`}
-                  className={`favorite-item-card ${bgClass}`}
-                  onClick={() =>
-                    water._id && navigate(`/gewaesser/${water._id}`)
-                  }
+                  key={`fav-${spot._id || i}`}
+                  className="favorite-item-card"
+                  onClick={() => spot._id && navigate(`/gewaesser/${spot._id}`)}
                   style={{
-                    ...customStyle,
+                    // KORREKTUR: Erhöhter Kontrast, damit das Bild hinter dem Text sichtbar wird
+                    background: `linear-gradient(to bottom, rgba(22, 34, 47, 0.4), rgba(15, 23, 42, 0.75)), url(${bgUrl}) center/cover no-repeat`,
                     cursor: "pointer",
                   }}
                 >
@@ -244,8 +298,8 @@ export default function Home({
                     className="favorite-item-info"
                     style={{ position: "relative", zIndex: 2 }}
                   >
-                    <h4>{water.name}</h4>
-                    <p>{(water.waterType || "SEE").toUpperCase()}</p>
+                    <h4>{spot.name}</h4>
+                    <p>{currentType.toUpperCase()}</p>
                   </div>
                 </div>
               );
@@ -253,38 +307,123 @@ export default function Home({
           </div>
         </div>
       )}
-
       {/* Diagramm */}
-      <BiteChart
-        weather={weather}
-        timeX={timeX}
-        currentTimeString={currentTimeString}
-      />
+      <div className="chart-card">
+        <div className="chart-header">
+          <div className="chart-title">
+            <Activity size={16} color="var(--accent-cyan)" />
+            <span>Beißverlauf (Live-Wetter)</span>
+          </div>
+          <span className="chart-subtitle">Aktuell: {currentTimeString}</span>
+        </div>
+        <div className="chart-visual-container">
+          <div className="chart-grid-line" style={{ top: "0%" }}></div>
+          <div className="chart-grid-line" style={{ top: "50%" }}></div>
+          <div className="chart-grid-line" style={{ top: "100%" }}></div>
+          <svg
+            viewBox="0 0 100 25"
+            preserveAspectRatio="none"
+            style={{ width: "100%", height: "100%", overflow: "visible" }}
+          >
+            <defs>
+              <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="0%"
+                  stopColor="var(--accent-cyan)"
+                  stopOpacity="0.25"
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--accent-cyan)"
+                  stopOpacity="0.0"
+                />
+              </linearGradient>
+            </defs>
+            <path
+              d={`${generateLivePath()} L 100 25 L 0 25 Z`}
+              fill="url(#waveGradient)"
+            />
+            <path
+              d={generateLivePath()}
+              fill="none"
+              stroke="var(--accent-cyan)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+            <line
+              x1={timeX}
+              y1="0"
+              x2={timeX}
+              y2="25"
+              stroke="var(--accent-orange)"
+              strokeWidth="0.6"
+              strokeDasharray="1,1"
+            />
+            <circle
+              cx={timeX}
+              cy={getCurrentY()}
+              r="1.8"
+              fill="var(--accent-orange)"
+            />
+          </svg>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "10px",
+            width: "100%",
+          }}
+        >
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            00:00
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            06:00
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            12:00
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            18:00
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            24:00
+          </span>
+        </div>
+      </div>
 
       {/* Gewässer-Liste */}
-      <h2 className="section-title">Meine Gewässer ({myWaters.length})</h2>
+      <h2 className="section-title">
+        Meine persönlichen Spots ({mySpots.length})
+      </h2>
       <div className="waters-list">
-        {myWaters.length === 0 ? (
+        {mySpots.length === 0 ? (
           <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
-            Noch keine Gewässer eingetragen.
+            Noch keine Angel-Spots eingetragen. Gehe auf die Karte, um einen
+            Spot zu speichern!
           </p>
         ) : (
-          myWaters.map((w, i) => {
-            const bgClass = getKachelClass(w);
-            const customStyle =
+          mySpots.map((w, i) => {
+            const spotName = w.name || "Unbenannter Spot";
+            const associatedWater = w.waterId?.name || "Keine Auswahl";
+            const currentType = (w.waterId?.waterType || "see").toLowerCase();
+
+            // KORREKTUR: Zieht sich das Bild direkt aus dem Spot-Modell, sonst stabiles Fallback
+            const bgUrl =
               w.imageUrl && w.imageUrl.trim() !== ""
-                ? {
-                    background: `linear-gradient(to right, rgba(11, 19, 31, 0.85) 45%, rgba(11, 19, 31, 0.2)), url(${w.imageUrl}) center/cover no-repeat`,
-                  }
-                : {};
+                ? w.imageUrl
+                : "https://unsplash.com";
 
             return (
               <div
                 key={w._id || i}
-                className={`water-item-card ${bgClass}`}
+                className="water-item-card"
                 onClick={() => w._id && navigate(`/gewaesser/${w._id}`)}
                 style={{
                   position: "relative",
+                  // KORREKTUR: Linearen Verlauf leicht angepasst für bessere Sichtbarkeit des Hintergrundbildes auf der rechten Seite
+                  background: `linear-gradient(to right, rgba(11, 19, 31, 0.9) 35%, rgba(11, 19, 31, 0.15)), url(${bgUrl}) center/cover no-repeat`,
                   overflow: "hidden",
                   border: "1px solid var(--border-color)",
                   borderRadius: "12px",
@@ -294,7 +433,6 @@ export default function Home({
                   alignItems: "center",
                   minHeight: "75px",
                   cursor: "pointer",
-                  ...customStyle,
                 }}
               >
                 <div
@@ -309,7 +447,7 @@ export default function Home({
                       textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                     }}
                   >
-                    {w.name}
+                    {spotName}
                   </h3>
                   <p
                     style={{
@@ -319,9 +457,10 @@ export default function Home({
                       fontWeight: "600",
                     }}
                   >
-                    {(w.waterType || "SEE").toUpperCase()}
+                    📍 {associatedWater} ({currentType.toUpperCase()})
                   </p>
                 </div>
+
                 <div
                   style={{
                     position: "relative",
@@ -333,25 +472,14 @@ export default function Home({
                 >
                   <button
                     className="btn-heart"
-                    onClick={(e) => {
-                      e.preventDefault(); // KORRIGIERT: Blockiert den Doppel-Trigger auf Handys
-                      e.stopPropagation(); // Verhindert ungewolltes Navigieren beim Herzklick
-                      if (w._id) {
-                        handleToggleFavorite(w._id, !!w.isFavorite);
-                      }
-                    }}
-                    onTouchStart={(e) => {
-                      e.preventDefault(); // KORRIGIERT: Unterdrückt das native mobile Touch-Verhalten zusätzlich
-                      e.stopPropagation();
-                    }}
+                    onClick={() =>
+                      w._id && handleToggleFavorite(w._id, !!w.isFavorite)
+                    }
                     style={{
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
                       padding: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
                     }}
                   >
                     <Heart

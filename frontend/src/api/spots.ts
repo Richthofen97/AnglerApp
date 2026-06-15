@@ -1,37 +1,18 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
-// CLOUDINARY-KONFIGURATION (Bleibt für deine Bilder-Cloud aktiv)
+// CLOUDINARY-KONFIGURATION (Bleibt exakt gleich für dein Profil)
 const CLOUDINARY_URL = "https://cloudinary.com";
 const UPLOAD_PRESET = "ml_default";
 
-/* ==========================================================================
-   1. FIXE HAUPTGEWÄSSER (NEU)
-   ========================================================================== */
-
-// KORRIGIERT: Holt die Liste der fixen Gewässer mitsamt optionaler Umkreissuche!
-export async function getFixedWaters(lat?: number, lng?: number) {
-  let url = `${API_URL}/api/waters`;
-  if (lat && lng) {
-    url += `?lat=${lat}&lng=${lng}`;
-  }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Fehler beim Laden der fixen Gewässer");
-  return await res.json();
-}
-
-/* ==========================================================================
-   2. SPOTS (Nutzen die exakt gleichen alten Namen wie vor 2 Stunden!)
-   ========================================================================== */
-
-// Ruft alle Spots ab (Das Frontend denkt, es wären die alten Gewässer)
-export async function getWaters() {
+// 1. Alle persönlichen Spots abrufen
+export async function getSpots() {
   const res = await fetch(`${API_URL}/api/spots`);
   if (!res.ok) throw new Error("Fehler beim Laden der Spots");
   return await res.json();
 }
 
-// Löscht einen Spot über seine ID
-export async function deleteWater(id: string) {
+// 2. Einen Spot dauerhaft löschen
+export async function deleteSpot(id: string) {
   const res = await fetch(`${API_URL}/api/spots/${id}`, {
     method: "DELETE",
   });
@@ -39,8 +20,8 @@ export async function deleteWater(id: string) {
   return await res.json();
 }
 
-// Schaltet den Favoriten-Status per Herz-Klick um
-export async function toggleFavorite(id: string, isFavorite: boolean) {
+// 3. Favoriten-Schalter für einen Spot umschalten
+export async function toggleSpotFavorite(id: string, isFavorite: boolean) {
   const res = await fetch(`${API_URL}/api/spots/${id}/favorite`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -50,8 +31,8 @@ export async function toggleFavorite(id: string, isFavorite: boolean) {
   return await res.json();
 }
 
-// Speichert die persönlichen Notizen auf der Detailseite
-export async function updateWaterNotes(id: string, notes: string) {
+// 4. Persönliche Notizen für einen Spot auf der Detailseite speichern
+export async function updateSpotNotes(id: string, notes: string) {
   const res = await fetch(`${API_URL}/api/spots/${id}/notes`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -61,13 +42,13 @@ export async function updateWaterNotes(id: string, notes: string) {
   return await res.json();
 }
 
-// Erstellt einen neuen Spot und verknüpft ihn mit dem fixen Gewässer (waterId)
-export async function createWater(
+// 5. Neuen Spot anlegen (Lädt optionales Foto hoch und verknüpft es mit der fixen waterId)
+export async function createSpot(
+  waterId: string,
   name: string,
   location: string,
   lat: number,
   lng: number,
-  waterType: string,
   imageFile: File | null,
 ) {
   let finalImageUrl = "";
@@ -92,12 +73,12 @@ export async function createWater(
     }
   }
 
-  // Schickt die Daten an dein neues /api/spots Backend
+  // Schickt die sauberen JSON-Daten mitsamt der Cloud-Bild-URL ans Backend
   const res = await fetch(`${API_URL}/api/spots`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      waterId: waterType, // Schiebt die übergebene ID trickreich in das richtige Feld
+      waterId,
       name,
       location,
       lat,

@@ -4,7 +4,8 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth";
-import waterRoutes from "./routes/waters"; // Angepasst auf deine Routen-Datei
+import waterRoutes from "./routes/waters"; // Beibehalten mit 's' wie in deiner Datei
+import spotRoutes from "./routes/spot"; // Import für die persönlichen GPS-Spots
 import weatherRoutes from "./routes/weather";
 
 dotenv.config();
@@ -24,10 +25,11 @@ app.use((req, res, next) => {
 });
 
 /* -----------------------------
-   ROUTES
+   ROUTES (Reihenfolge ist perfekt abgestimmt)
 ------------------------------ */
 app.use("/api/auth", authRoutes);
 app.use("/api/waters", waterRoutes);
+app.use("/api/spots", spotRoutes); // KORREKTUR: Jetzt registriert und erreichbar!
 app.use("/api/weather", weatherRoutes);
 
 /* -----------------------------
