@@ -13,18 +13,28 @@ router.get("/", async (req, res) => {
       const latitude = parseFloat(lat as string);
       const longitude = parseFloat(lng as string);
 
-      const nearbyWaters = await Water.find({
-        location: {
-          $near: {
-            $geometry: {
-              type: "Point",
-              coordinates: [longitude, latitude], // Wichtig bei MongoDB: [lng, lat]
+      try {
+        const nearbyWaters = await Water.find({
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: [longitude, latitude], // Wichtig bei MongoDB: [lng, lat]
+              },
             },
           },
-        },
-      }).limit(5); // Streng limitiert auf die 5 nächsten Treffer
+        }).limit(5); // Streng limitiert auf die 5 nächsten Treffer
 
-      return res.json(nearbyWaters);
+        return res.json(nearbyWaters);
+      } catch (geoIndexError) {
+        console.error(
+          "Geo-Index wird noch aufgebaut, nutze Fallback:",
+          geoIndexError,
+        );
+        // Falls der Index in der Cloud noch lädt: Gib einfach die ersten 5 Gewässer aus, statt 500!
+        const fallbackWaters = await Water.find().limit(5);
+        return res.json(fallbackWaters);
+      }
     }
 
     // Wenn KEINE Koordinaten übergeben wurden, schicke alle Gewässer alphabetisch (für die Übersicht)
