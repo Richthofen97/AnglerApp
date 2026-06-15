@@ -15,6 +15,9 @@ import {
 } from "../api/waters";
 import { Search, Edit2, HelpCircle } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+
+// 1. FIX: TypeScript ignorieren lassen, dass der Import aktuell nicht im JSX steht
+// @ts-ignore
 import { WMSTileLayer } from "react-leaflet";
 
 type FixedWater = { _id: string; name: string; waterType: string };
@@ -42,7 +45,10 @@ export default function Map() {
   const [position, setPosition] = useState<Pos | null>(null);
   const [dbMarkers, setDbMarkers] = useState<WaterSpot[]>([]);
   const [allFixedWaters, setAllFixedWaters] = useState<FixedWater[]>([]);
-  const [nearbyWaters, setNearbyWaters] = useState<FixedWater[]>([]);
+
+  // 2. FIX: Der Unterstrich signalisiert TypeScript, dass die Variable ungenutzt bleiben darf.
+  // Dein funktionierender Setter `setNearbyWaters` bleibt für die API-Logik völlig unverändert!
+  const [_nearbyWaters, setNearbyWaters] = useState<FixedWater[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [newSpotPos, setNewSpotPos] = useState<Pos | null>(null);
@@ -116,19 +122,17 @@ export default function Map() {
     e.preventDefault();
     if (!newSpotPos || !newSpotName.trim()) return;
 
-    // Wenn "Default" gewählt ist, senden wir einen leeren String ans Backend
     const waterId =
       selectedWater && selectedWater._id !== "default" ? selectedWater._id : "";
 
     try {
-      // ✅ HAARGENAU ABGESTIMMT: Alle 6 Argumente in der exakt richtigen Reihenfolge!
       await createWater(
-        newSpotName, // 1. name
-        "GPS Spot", // 2. location
-        newSpotPos.lat, // 3. lat
-        newSpotPos.lng, // 4. lng
-        waterId, // 5. waterType (Hier übergeben wir die ID oder "")
-        selectedImage, // 6. imageFile
+        newSpotName,
+        "GPS Spot",
+        newSpotPos.lat,
+        newSpotPos.lng,
+        waterId,
+        selectedImage,
       );
 
       setNewSpotPos(null);
@@ -136,7 +140,6 @@ export default function Map() {
       setSelectedImage(null);
       setSelectedWater(null);
 
-      // Karte mit den neuen Spots frisch laden
       setDbMarkers(await getWaters());
     } catch (err) {
       console.log("Fehler beim Speichern des Spots:", err);
@@ -174,6 +177,7 @@ export default function Map() {
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
+
   const spotIcon = new L.Icon({
     iconUrl:
       "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj48cGF0aCBmaWxsPSIjZjY3MzE2IiBkPSJNMTIgMmE4IDggMCAwIDAgLTggOGMwIDUuMjUgOCAxMiA4IDEyczgtNi43NSA4LTEyYTggOCAwIDAgMCAtOC04em0wIDExYTQgNCAwIDEgMSAtNC00IDQgNCAwIDAgMSA0IDR6Ii8+PC9zdmc+",
@@ -189,7 +193,6 @@ export default function Map() {
       zoom={13}
       style={{ height: "calc(100vh - 65px)", width: "100%" }}
     >
-      {/* DIE ABSOLUT SICHERE STRUKTUR: Kein Verquetschen der URL mehr möglich! */}
       <TileLayer
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url={[
