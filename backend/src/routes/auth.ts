@@ -1,6 +1,6 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs"; // Nutzt sauber deine bcryptjs-Bibliothek
 import User from "../models/User";
 
 const router = express.Router();
@@ -36,7 +36,6 @@ const verifyToken = (
 ------------------------------------------------------------- */
 router.post("/register", async (req, res) => {
   try {
-    // REPARATUR: 'username' wird jetzt ebenfalls aus dem Request-Body extrahiert!
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
@@ -46,7 +45,6 @@ router.post("/register", async (req, res) => {
     const emailClean = email.toLowerCase().trim();
     const usernameClean = username.trim();
 
-    // Prüfen, ob die E-Mail bereits existiert
     const emailExists = await User.findOne({ email: emailClean });
     if (emailExists) {
       return res
@@ -54,7 +52,6 @@ router.post("/register", async (req, res) => {
         .json({ message: "Diese E-Mail wird bereits verwendet" });
     }
 
-    // Prüfen, ob der Benutzername bereits existiert
     const usernameExists = await User.findOne({ username: usernameClean });
     if (usernameExists) {
       return res
@@ -62,7 +59,6 @@ router.post("/register", async (req, res) => {
         .json({ message: "Dieser Benutzername ist bereits vergeben" });
     }
 
-    // Passwort sicher verschlüsseln
     let hashedPassword = password;
     try {
       const salt = await bcrypt.genSalt(10);
@@ -73,7 +69,6 @@ router.post("/register", async (req, res) => {
       );
     }
 
-    // KORREKTUR: 'username' wird jetzt sauber an den Mongoose-Create-Block übergeben!
     const newUser = await User.create({
       username: usernameClean,
       email: emailClean,
@@ -160,6 +155,49 @@ router.get("/me", verifyToken, async (req: any, res) => {
     return res.json(user);
   } catch (err: any) {
     console.error("Fehler bei GET /api/auth/me:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+/* -------------------------------------------------------------
+   4. NEU: PASSWORT ÄNDERN ENDPUNKT (/api/auth/change-password)
+------------------------------------------------------------- */
+router.patch("/change-password", verifyToken, async (req: any, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Bitte alle Felder ausfüllen." });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({
+          message: "Das neue Passwort muss mindestens 6 Zeichen lang sein.",
+        });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "Benutzer nicht gefunden." });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res
+        .status(400)
+        .json({ message: "Das aktuelle Passwort ist nicht korrekt." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    console.log(`🔒 Passwort erfolgreich geändert für User: ${user.username}`);
+    return res.json({ message: "Passwort erfolgreich aktualisiert!" });
+  } catch (err: any) {
+    console.error("Fehler beim Passwort-Ändern:", err.message);
     return res.status(500).json({ message: err.message });
   }
 });

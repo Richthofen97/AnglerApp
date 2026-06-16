@@ -61,7 +61,7 @@ router.get("/", verifyToken, async (req: any, res) => {
 });
 
 /* -------------------------------------------------------------
-   2. CREATE new personal spot (ABSOLUT ID-SICHER & FIX)
+   2. CREATE new personal spot (REPARIERT FÜR LIVE-GEWÄSSER)
 ------------------------------------------------------------- */
 router.post("/", verifyToken, async (req: any, res) => {
   try {
@@ -72,58 +72,42 @@ router.post("/", verifyToken, async (req: any, res) => {
       lat,
       lng,
       imageUrl,
+      // Falls das Frontend sie mitschickt – sonst fangen wir es unten per Fallback ab!
       waterName,
       waterType,
     } = req.body;
 
-    const isGenericId =
-      waterId &&
-      (waterId.startsWith("live-") ||
-        waterId.startsWith("unbekannt") ||
-        waterId.startsWith("osm-"));
+    let finalWaterId = waterId;
 
-    const finalWaterId =
-      !waterId || waterId === "default" || waterId === "" || isGenericId
-        ? null
-        : waterId;
+    // PRÜFUNG: Ist die übergebene ID KEINE gültige MongoDB-ObjectId? (z.B. "live-pegnitz" oder "osm-123")
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(waterId || "");
 
-    if (finalWaterId) {
-      try {
-        // KORREKTUR: Wir prüfen, ob die ID formal eine echte MongoDB-ID ist
-        const isValidObjectId = mongoose.Types.ObjectId.isValid(finalWaterId);
+    if (!isValidObjectId && name) {
+      // LOGIK: Wir schauen nach, ob wir dieses Gewässer anhand des Namens (z.B. "Pegnitz") schon in der DB haben
+      let existingWater = await Water.findOne({
+        name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+      });
 
-        // REPARATUR: Nur wenn es eine echte ObjectId ist, fragen wir die DB ab!
-        // Das verhindert den unsichtbaren CastError-Absturz im Backend komplett.
-        if (isValidObjectId) {
-          const waterExists = await Water.findById(finalWaterId);
-
-          if (!waterExists) {
-            await Water.create({
-              _id: finalWaterId,
-              name: waterName || "Echtes Gewässer",
-              waterType: waterType || "see",
-              location: {
-                type: "Point",
-                coordinates: [Number(lng), Number(lat)],
-              },
-            });
-            console.log(
-              `Neues Live-Gewässer registriert: ${waterName} (${finalWaterId})`,
-            );
-          }
-        } else {
-          console.log(
-            `Generische Gewässer-ID übersprungen (keine gültige ObjectId): ${finalWaterId}`,
-          );
-        }
-      } catch (waterErr: any) {
+      if (!existingWater) {
+        // Falls nicht existent, erstellen wir ein brandneues Gewässer-Objekt mit echter MongoDB-ID
+        existingWater = await Water.create({
+          name: name || "Echtes Gewässer",
+          waterType: (waterType || "fluss").toLowerCase().trim(), // Fallback auf fluss, da wir wissen es war ein Treffer
+          location: {
+            type: "Point",
+            coordinates: [Number(lng), Number(lat)],
+          },
+        });
         console.log(
-          `Gewässer-Registrierung übersprungen oder abgefangen: ${waterErr.message}`,
+          `🎯 Neues Gewässer permanent registriert: ${existingWater.name} (${existingWater.waterType})`,
         );
       }
+
+      // Wir überschreiben die temporäre ID mit der echten MongoDB-_id
+      finalWaterId = existingWater._id;
     }
 
-    // Erstellt den Spot absolut crash-sicher und verknüpft ihn mit deiner echten User-ID
+    // Erstellt den Spot absolut crash-sicher und verknüpft ihn mit der echten Gewässer-ID
     const newSpot = await Spot.create({
       userId: req.user.id,
       waterId: mongoose.Types.ObjectId.isValid(finalWaterId)

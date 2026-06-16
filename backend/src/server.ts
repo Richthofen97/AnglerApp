@@ -2,12 +2,12 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-
 import authRoutes from "./routes/auth";
 import waterRoutes from "./routes/waters";
 import spotRoutes from "./routes/spot";
 import weatherRoutes from "./routes/weather";
 import catchRoutes from "./routes/catch"; // NEW: Import für dein Fangtagebuch
+import aiRoutes from "./routes/ai";
 
 dotenv.config();
 
@@ -32,7 +32,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/waters", waterRoutes);
 app.use("/api/spots", spotRoutes);
 app.use("/api/weather", weatherRoutes);
-app.use("/api/catches", catchRoutes); // NEW: Endpunkt für alle Fänge registriert!
+app.use("/api/catches", catchRoutes);
+app.use("/api/ai", aiRoutes);
 
 /* -----------------------------
    HEALTH CHECK

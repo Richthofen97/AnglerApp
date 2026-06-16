@@ -7,37 +7,21 @@ router.get("/", async (req, res) => {
   try {
     const { lat, lng } = req.query;
 
-    // KORREKTUR: Erzwingt das Parsen als gültige Gleitkommazahl, fängt Frontend-Fehler ab
     const latitudeNum = parseFloat(lat as string);
     const longitudeNum = parseFloat(lng as string);
 
-    // Falls die Werte ungültig oder NaN sind, nutzen wir Nürnberg als globalen Fallback
     const latitude = !isNaN(latitudeNum) ? latitudeNum.toString() : "49.4521";
     const longitude = !isNaN(longitudeNum)
       ? longitudeNum.toString()
       : "11.0767";
 
-    // URL sauber über die URL-Schnittstelle aufbauen
-    const weatherUrl = new URL("https://open-meteo.com");
-    weatherUrl.searchParams.append("latitude", latitude);
-    weatherUrl.searchParams.append("longitude", longitude);
-    weatherUrl.searchParams.append(
-      "hourly",
-      "temperature_2m,weather_code,pressure_msl,wind_speed_10m",
-    );
-    weatherUrl.searchParams.append(
-      "current",
-      "temperature_2m,weather_code,pressure_msl,wind_speed_10m",
-    );
-    weatherUrl.searchParams.append("timezone", "auto");
-    weatherUrl.searchParams.append("forecast_days", "1");
+    const baseUrl = "https://open-meteo.com?";
+    const params = "temperature_2m,weather_code,pressure_msl,wind_speed_10m";
+    const weatherUrl = `${baseUrl}latitude=${latitude}&longitude=${longitude}&hourly=${params}&current=${params}&timezone=auto&forecast_days=1`;
 
-    console.log(
-      "=== API JETZT MIT ECHTEN KOORDINATEN ===",
-      weatherUrl.toString(),
-    );
+    console.log("=== API JETZT MIT ECHTEN KOORDINATEN ===", weatherUrl);
 
-    const response = await axios.get(weatherUrl.toString(), { timeout: 5000 });
+    const response = await axios.get(weatherUrl, { timeout: 5000 });
 
     if (!response.data || !response.data.hourly || !response.data.current) {
       throw new Error("Ungültige Antwortstruktur von Open-Meteo");
@@ -46,12 +30,11 @@ router.get("/", async (req, res) => {
     const hourly = response.data.hourly;
     const current = response.data.current;
 
-    // Beißindex-Algorithmus
     const biteIndexHourly = hourly.time.map((_: any, index: number) => {
-      const temp = hourly.temperature_2m[index] || 18;
-      const pressure = hourly.pressure_msl[index] || 1013;
-      const wind = hourly.wind_speed_10m[index] || 12;
-      const code = hourly.weather_code[index] || 1;
+      const temp = hourly.temperature_2m[index] ?? 18;
+      const pressure = hourly.pressure_msl[index] ?? 1013;
+      const wind = hourly.wind_speed_10m[index] ?? 12;
+      const code = hourly.weather_code[index] ?? 1;
 
       let score = 50;
 
@@ -61,7 +44,6 @@ router.get("/", async (req, res) => {
       if (wind < 15) score += 15;
       else if (wind > 30) score -= 20;
 
-      // Sicher befüllte Codes via String-Split, um Blockaden zu umgehen
       const cloudyCodes = "1,2,3".split(",").map(Number);
       const rainCodes = "51,53,55,61,63,65,66,67,80,81,82"
         .split(",")
@@ -83,10 +65,10 @@ router.get("/", async (req, res) => {
 
     return res.json({
       current: {
-        temp: current.temperature_2m || 18,
-        pressure: current.pressure_msl || 1013,
-        wind: current.wind_speed_10m || 12,
-        code: current.weather_code || 1,
+        temp: current.temperature_2m ?? 18,
+        pressure: current.pressure_msl ?? 1013,
+        wind: current.wind_speed_10m ?? 12,
+        code: current.weather_code ?? 1,
         biteIndex: currentBiteIndex,
       },
       hourlyBiteIndex: biteIndexHourly,
@@ -94,8 +76,6 @@ router.get("/", async (req, res) => {
   } catch (err: any) {
     console.error("Wetter-Backend Fehler abgefangen:", err.message);
 
-    // Dynamischer Notfall-Fallback, damit sich wenigstens die Werte verändern,
-    // falls die API jemals offline sein sollte (Simuliert echte Dynamik)
     const mockTemp = Math.round(15 + Math.random() * 8);
     const mockWind = Math.round(5 + Math.random() * 15);
     const mockBite = Math.round(45 + Math.random() * 40);

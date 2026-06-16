@@ -17,11 +17,7 @@ import {
   Camera, // NEW: Icon für den Foto-Upload im Formular
 } from "lucide-react";
 import "../App.css";
-
-import seeBg from "../assets/see.jpg";
-import flussBg from "../assets/fluss.jpg";
-import meerBg from "../assets/meer.jpg";
-
+import { getWaterImage } from "../utils/waterImageHelper";
 type WaterSpot = {
   _id: string;
   name: string;
@@ -184,18 +180,7 @@ export default function WaterDetail() {
       </div>
     );
 
-  let headerImg = seeBg;
-  if (
-    water.imageUrl &&
-    water.imageUrl.trim() !== "" &&
-    /\.(jpeg|jpg|gif|png|webp)$/i.test(water.imageUrl.trim())
-  ) {
-    headerImg = water.imageUrl.trim();
-  } else {
-    const typ = (water.waterType || "see").toLowerCase().trim();
-    if (typ === "fluss") headerImg = flussBg;
-    else if (typ === "meer") headerImg = meerBg;
-  }
+  const headerImg = getWaterImage(water);
 
   return (
     <div className="dashboard-container" style={{ paddingBottom: "30px" }}>

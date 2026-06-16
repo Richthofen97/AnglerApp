@@ -6,10 +6,9 @@ const CLOUDINARY_URL = "https://cloudinary.com";
 const UPLOAD_PRESET = "ml_default";
 
 /* ==========================================================================
-   1. SPOTS ABRUFEN (KORREKTUR: Nutzt jetzt customFetch für das automatische Token!)
+   1. SPOTS ABRUFEN (Nutzt customFetch für das automatische Token)
    ========================================================================== */
 export async function getSpots() {
-  // customFetch setzt automatisch http://10.10.1.120:5000 davor und hängt das Token an
   return await customFetch("/api/spots");
 }
 
@@ -45,7 +44,7 @@ export async function updateSpotNotes(id: string, notes: string) {
 }
 
 /* ==========================================================================
-   5. NEUEN SPOT ERSTELLEN
+   5. NEUEN SPOT ERSTELLEN (KORREKTUR: Übergibt nun Livedaten ans Backend)
    ========================================================================== */
 export async function createSpot(
   waterId: string,
@@ -54,10 +53,12 @@ export async function createSpot(
   lat: number,
   lng: number,
   imageFile: File | null,
+  waterName?: string, // Neu: Nimmt den ermittelten Gewässernamen auf
+  waterType?: string, // Neu: Nimmt den Live-Typ (z.B. "fluss") auf
 ) {
   let finalImageUrl = "";
 
-  // Cloudinary bleibt unberührt, da es ein externer Dienst ist
+  // Cloudinary-Upload für optionale Spot-Bilder
   if (imageFile) {
     const cloudinaryData = new FormData();
     cloudinaryData.append("file", imageFile);
@@ -78,7 +79,7 @@ export async function createSpot(
     }
   }
 
-  // Schickt die Daten geschützt an dein Backend
+  // Schickt die Daten inklusive der Live-Gewässer-Infos geschützt an dein Backend
   return await customFetch("/api/spots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -89,6 +90,8 @@ export async function createSpot(
       lat,
       lng,
       imageUrl: finalImageUrl,
+      waterName: waterName || name, // Übergibt den Namen für die permanente DB-Erstellung
+      waterType: waterType || "see", // Übergibt den erkannten Typ (Standard-Fallback: "see")
     }),
   });
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getWaters, toggleFavorite } from "../api/waters";
 import { getLiveWeather } from "../api/weather";
 import HeroImage from "../components/HeroImage";
+import { getWaterImage } from "../utils/waterImageHelper";
 import {
   CloudSun,
   Wind,
@@ -271,11 +272,11 @@ export default function Home({
                 spot.waterId?.waterType || "see"
               ).toLowerCase();
 
-              // KORREKTUR: Wenn kein Bild hochgeladen wurde, nutzen wir ein absolut stabiles, garantiertes Angel-Hintergrundbild
-              const bgUrl =
-                spot.imageUrl && spot.imageUrl.trim() !== ""
-                  ? spot.imageUrl
-                  : "https://unsplash.com"; // Zuverlässiges Fallback-Bild
+              // NUTZT DIE NEUE HILFSFUNKTION: Kombiniert Bild-URL und Typ-Logik
+              const bgUrl = getWaterImage({
+                imageUrl: spot.imageUrl,
+                waterType: spot.waterId?.waterType,
+              });
 
               return (
                 <div
@@ -283,7 +284,7 @@ export default function Home({
                   className="favorite-item-card"
                   onClick={() => spot._id && navigate(`/gewaesser/${spot._id}`)}
                   style={{
-                    // KORREKTUR: Erhöhter Kontrast, damit das Bild hinter dem Text sichtbar wird
+                    // Erhöhter Kontrast, damit das neue Standardbild perfekt durchschimmert
                     background: `linear-gradient(to bottom, rgba(22, 34, 47, 0.4), rgba(15, 23, 42, 0.75)), url(${bgUrl}) center/cover no-repeat`,
                     cursor: "pointer",
                   }}
@@ -307,6 +308,7 @@ export default function Home({
           </div>
         </div>
       )}
+
       {/* Diagramm */}
       <div className="chart-card">
         <div className="chart-header">
@@ -409,11 +411,11 @@ export default function Home({
             const associatedWater = w.waterId?.name || "Keine Auswahl";
             const currentType = (w.waterId?.waterType || "see").toLowerCase();
 
-            // KORREKTUR: Zieht sich das Bild direkt aus dem Spot-Modell, sonst stabiles Fallback
-            const bgUrl =
-              w.imageUrl && w.imageUrl.trim() !== ""
-                ? w.imageUrl
-                : "https://unsplash.com";
+            // NUTZT DIE NEUE HILFSFUNKTION: Ersetzt das alte Unsplash-Fallback
+            const bgUrl = getWaterImage({
+              imageUrl: w.imageUrl,
+              waterType: w.waterId?.waterType,
+            });
 
             return (
               <div
@@ -422,7 +424,7 @@ export default function Home({
                 onClick={() => w._id && navigate(`/gewaesser/${w._id}`)}
                 style={{
                   position: "relative",
-                  // KORREKTUR: Linearen Verlauf leicht angepasst für bessere Sichtbarkeit des Hintergrundbildes auf der rechten Seite
+                  // Das neue Standardbild fügt sich perfekt in den bestehenden Verlauf ein
                   background: `linear-gradient(to right, rgba(11, 19, 31, 0.9) 35%, rgba(11, 19, 31, 0.15)), url(${bgUrl}) center/cover no-repeat`,
                   overflow: "hidden",
                   border: "1px solid var(--border-color)",
