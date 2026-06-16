@@ -1,122 +1,127 @@
 import express from "express";
 import Water from "../models/Water";
+import dns from "dns";
 
 const router = express.Router();
 
-// 1. GET: Holt entweder echte Gewässer via OSM oder die aus der DB
+// SYSTEM-FIX: Zwingt den gesamten Node.js-Prozess in dieser Route dazu,
+// IPv4 bei der DNS-Auflösung radikal zu bevorzugen. Das killt das 'fetch failed'!
+dns.setDefaultResultOrder("ipv4first");
+
 router.get("/", async (req, res) => {
   const { lat, lng } = req.query;
 
   try {
-    // Wenn Koordinaten übergeben wurden, fragen wir die Live-API von OpenStreetMap ab
+    // ==========================================================================
+    // FALL 1: KLICK AUF DIE KARTE (100% Live via Nominatim OpenStreetMap)
+    // ==========================================================================
     if (lat && lng) {
       const latitude = parseFloat(lat as string);
       const longitude = parseFloat(lng as string);
 
-      // OverpassQL-Abfrage: Suche Flüsse und Seen im Umkreis von 2000 Metern
-      const overpassQuery = `
-        [out:json][timeout:15];
-        (
-          way["waterway"](around:2000, ${latitude}, ${longitude});
-          way["natural"="water"](around:2000, ${latitude}, ${longitude});
-          relation["natural"="water"](around:2000, ${latitude}, ${longitude});
-        );
-        out tags center;
-      `;
-
-      const osmUrl = `https://overpass-api.de{encodeURIComponent(overpassQuery)}`;
+      if (isNaN(latitude) || isNaN(longitude)) {
+        return res.json([]);
+      }
 
       try {
-        // WICHTIG: Wir fügen einen User-Agent Header hinzu, damit die OSM-API uns nicht blockiert!
-        const osmResponse = await fetch(osmUrl, {
+        // Die korrekte Nominatim-URL mit abschließendem Schrägstrich gegen den 301
+        const url =
+          "https://openstreetmap.org" +
+          latitude +
+          "&lon=" +
+          longitude +
+          "&zoom=14&addressdetails=1&accept-language=de";
+
+        const fetchResponse = await fetch(url, {
+          method: "GET",
           headers: {
-            "User-Agent":
-              "AnglerApp/1.0 (https://anglerapp.onrender.com; contact@example.com)",
+            "User-Agent": "AngelAppBackend/1.0 (nikolai.project@example.com)",
+            Accept: "application/json",
           },
         });
 
-        if (!osmResponse.ok) {
-          throw new Error(
-            `OSM-API antwortete mit Status ${osmResponse.status}`,
-          );
+        if (!fetchResponse.ok) {
+          throw new Error("HTTP-Status " + fetchResponse.status);
         }
 
-        const osmData = await osmResponse.json();
+        const data = (await fetchResponse.json()) as any;
+        const address = data?.address || {};
 
-        if (!osmData.elements || osmData.elements.length === 0) {
+        // Holt den echten Namen des Gewässers aus den OSM-Tags
+        const waterName = address.natural || address.waterway || data.name;
+
+        if (waterName) {
+          let type: "see" | "fluss" | "meer" = "see";
+
+          if (
+            address.waterway ||
+            waterName.toLowerCase().includes("bach") ||
+            waterName.toLowerCase().includes("kanal")
+          ) {
+            type = "fluss";
+          } else if (
+            waterName.toLowerCase().includes("ostsee") ||
+            waterName.toLowerCase().includes("nordsee")
+          ) {
+            type = "meer";
+          }
+
           return res.json([
             {
-              _id: "unbekannt",
-              name: "Unbekanntes Gewässer",
-              waterType: "see",
+              _id: data.osm_id
+                ? "osm-" + data.osm_id
+                : "live-" + Math.floor(latitude * 1000),
+              name: waterName,
+              waterType: type,
+              location: { type: "Point", coordinates: [longitude, latitude] },
             },
           ]);
         }
 
-        // Filtert die OSM-Ergebnisse
-        const realWaters = osmData.elements
-          .filter((el: any) => el.tags && el.tags.name)
-          .map((el: any) => {
-            let type: "see" | "fluss" | "meer" = "see";
-            if (
-              el.tags.waterway ||
-              el.tags.water === "river" ||
-              el.tags.water === "canal"
-            ) {
-              type = "fluss";
-            } else if (el.tags.water === "sea" || el.tags.bay) {
-              type = "meer";
-            }
+        // Orts-Fallback, falls Nominatim an der Stelle kein direktes Gewässer-Element findet
+        let locationName =
+          address.village ||
+          address.town ||
+          address.city ||
+          address.municipality ||
+          `Region [${latitude.toFixed(2)}, ${longitude.toFixed(2)}]`;
 
-            return {
-              _id: el.id.toString(),
-              name: el.tags.name,
-              waterType: type,
-              location: {
-                type: "Point",
-                coordinates: [
-                  el.center ? el.center.lon : longitude,
-                  el.center ? el.center.lat : latitude,
-                ],
-              },
-            };
-          });
-
-        // Doppelte Namen eliminieren
-        const uniqueWaters = realWaters.filter(
-          (water: any, index: number, self: any[]) =>
-            self.findIndex((w) => w.name === water.name) === index,
-        );
-
-        return res.json(uniqueWaters.slice(0, 5));
-      } catch (osmError) {
-        console.error(
-          "Direkter OSM-Fehler abgefangen, nutze leeres Fallback:",
-          osmError,
-        );
-        // Fallback: Sende ein Dummy-Objekt, damit das Frontend nicht einfriert oder 500 wirft!
         return res.json([
           {
-            _id: "osm-error",
-            name: "Gewässer-Suche fehlgeschlagen (OSM)",
+            _id: "live-area-" + Math.floor(latitude * 1000),
+            name: "Gewässer bei " + locationName,
             waterType: "see",
+            location: { type: "Point", coordinates: [longitude, latitude] },
+          },
+        ]);
+      } catch (osmError: any) {
+        console.error("NOMINATIM-LIVE-FEHLER:", osmError.message);
+
+        return res.json([
+          {
+            _id: "live-err-" + Math.floor(latitude * 1000),
+            name:
+              "Gewässer bei Spot [" +
+              latitude.toFixed(3) +
+              ", " +
+              longitude.toFixed(3) +
+              "]",
+            waterType: "see",
+            location: { type: "Point", coordinates: [longitude, latitude] },
           },
         ]);
       }
     }
 
-    // Wenn keine Koordinaten übergeben wurden (Übersichtsliste im Hauptmenü)
+    // ==========================================================================
+    // FALL 2: GLOBALE ÜBERSICHT
+    // ==========================================================================
     const dbWaters = await Water.find().sort({ name: 1 });
-    res.json(dbWaters);
+    return res.json(dbWaters);
   } catch (err: any) {
-    console.error("Fataler Fehler in der Gewässer-Route:", err);
+    console.error("Fataler Fehler in Gewässer-API:", err);
     res.status(500).json({ message: err.message });
   }
-});
-
-// 2. SEED-Route (Sicherheits-Dummy)
-router.get("/seed", async (req, res) => {
-  res.json({ message: "Live-API aktiv." });
 });
 
 export default router;

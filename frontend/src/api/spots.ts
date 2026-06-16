@@ -1,48 +1,52 @@
-const API_URL = import.meta.env.VITE_API_URL;
+// Ganz oben importieren (Achte darauf, dass der Pfad zu deiner fetchClient-Datei stimmt!)
+import { customFetch } from "./fetchClient";
 
-// CLOUDINARY-KONFIGURATION (Bleibt exakt gleich für dein Profil)
+// CLOUDINARY-KONFIGURATION (Bleibt für den Foto-Upload aktiv)
 const CLOUDINARY_URL = "https://cloudinary.com";
 const UPLOAD_PRESET = "ml_default";
 
-// 1. Alle persönlichen Spots abrufen
+/* ==========================================================================
+   1. SPOTS ABRUFEN (KORREKTUR: Nutzt jetzt customFetch für das automatische Token!)
+   ========================================================================== */
 export async function getSpots() {
-  const res = await fetch(`${API_URL}/api/spots`);
-  if (!res.ok) throw new Error("Fehler beim Laden der Spots");
-  return await res.json();
+  // customFetch setzt automatisch http://10.10.1.120:5000 davor und hängt das Token an
+  return await customFetch("/api/spots");
 }
 
-// 2. Einen Spot dauerhaft löschen
+/* ==========================================================================
+   2. SPOT LÖSCHEN
+   ========================================================================== */
 export async function deleteSpot(id: string) {
-  const res = await fetch(`${API_URL}/api/spots/${id}`, {
+  return await customFetch(`/api/spots/${id}`, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error("Fehler beim Löschen des Spots");
-  return await res.json();
 }
 
-// 3. Favoriten-Schalter für einen Spot umschalten
+/* ==========================================================================
+   3. FAVORITEN-STATUS UMSCHALTEN
+   ========================================================================== */
 export async function toggleSpotFavorite(id: string, isFavorite: boolean) {
-  const res = await fetch(`${API_URL}/api/spots/${id}/favorite`, {
+  return await customFetch(`/api/spots/${id}/favorite`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ isFavorite }),
   });
-  if (!res.ok) throw new Error("Favoriten-Status konnte nicht geändert werden");
-  return await res.json();
 }
 
-// 4. Persönliche Notizen für einen Spot auf der Detailseite speichern
+/* ==========================================================================
+   4. NOTIZEN SPEICHERN
+   ========================================================================== */
 export async function updateSpotNotes(id: string, notes: string) {
-  const res = await fetch(`${API_URL}/api/spots/${id}/notes`, {
+  return await customFetch(`/api/spots/${id}/notes`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ notes }),
   });
-  if (!res.ok) throw new Error("Notizen konnten nicht gespeichert werden");
-  return await res.json();
 }
 
-// 5. Neuen Spot anlegen (Lädt optionales Foto hoch und verknüpft es mit der fixen waterId)
+/* ==========================================================================
+   5. NEUEN SPOT ERSTELLEN
+   ========================================================================== */
 export async function createSpot(
   waterId: string,
   name: string,
@@ -53,6 +57,7 @@ export async function createSpot(
 ) {
   let finalImageUrl = "";
 
+  // Cloudinary bleibt unberührt, da es ein externer Dienst ist
   if (imageFile) {
     const cloudinaryData = new FormData();
     cloudinaryData.append("file", imageFile);
@@ -73,8 +78,8 @@ export async function createSpot(
     }
   }
 
-  // Schickt die sauberen JSON-Daten mitsamt der Cloud-Bild-URL ans Backend
-  const res = await fetch(`${API_URL}/api/spots`, {
+  // Schickt die Daten geschützt an dein Backend
+  return await customFetch("/api/spots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -86,7 +91,4 @@ export async function createSpot(
       imageUrl: finalImageUrl,
     }),
   });
-
-  if (!res.ok) throw new Error("Fehler beim Erstellen des Spots");
-  return await res.json();
 }

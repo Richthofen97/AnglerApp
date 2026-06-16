@@ -4,9 +4,10 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth";
-import waterRoutes from "./routes/waters"; // Beibehalten mit 's' wie in deiner Datei
-import spotRoutes from "./routes/spot"; // Import für die persönlichen GPS-Spots
+import waterRoutes from "./routes/waters";
+import spotRoutes from "./routes/spot";
 import weatherRoutes from "./routes/weather";
+import catchRoutes from "./routes/catch"; // NEW: Import für dein Fangtagebuch
 
 dotenv.config();
 
@@ -29,8 +30,9 @@ app.use((req, res, next) => {
 ------------------------------ */
 app.use("/api/auth", authRoutes);
 app.use("/api/waters", waterRoutes);
-app.use("/api/spots", spotRoutes); // KORREKTUR: Jetzt registriert und erreichbar!
+app.use("/api/spots", spotRoutes);
 app.use("/api/weather", weatherRoutes);
+app.use("/api/catches", catchRoutes); // NEW: Endpunkt für alle Fänge registriert!
 
 /* -----------------------------
    HEALTH CHECK

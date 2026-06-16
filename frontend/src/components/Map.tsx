@@ -16,10 +16,9 @@ import {
   deleteWater,
   getFixedWaters,
 } from "../api/waters";
-import { Search, Edit2, HelpCircle } from "lucide-react";
+import { Search } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
-// Verhindert TypeScript-Fehler für zukünftige WMS-Karten
 // @ts-ignore
 import { WMSTileLayer } from "react-leaflet";
 
@@ -49,31 +48,30 @@ function ClickHandler({ onClick }: { onClick: (pos: Pos) => void }) {
   });
   return null;
 }
+
 // ==========================================
-// 4. HAUPTKOMPONENTE (START)
+// 4. HAUPTKOMPONENTE START & STATES
 // ==========================================
 export default function Map() {
-  // --- Daten- und Positions-States ---
   const [position, setPosition] = useState<Pos | null>(null);
   const [dbMarkers, setDbMarkers] = useState<WaterSpot[]>([]);
-  const [allFixedWaters, setAllFixedWaters] = useState<FixedWater[]>([]);
   const [nearbyWaters, setNearbyWaters] = useState<FixedWater[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Formular- und Such-States ---
   const [newSpotPos, setNewSpotPos] = useState<Pos | null>(null);
   const [newSpotName, setNewSpotName] = useState<string>("");
   const [selectedWater, setSelectedWater] = useState<FixedWater | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
-  // --- DOM- & Leaflet-Referenzen ---
   const newMarkerRef = useRef<L.Marker | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  // ==========================================
+  // 5. REACT LIFECYCLE HOOKS (EFFECTS)
+  // ==========================================
 
-  // --- Hook 1: GPS-Standort beim Laden abfragen ---
+  // Hook A: GPS-Standort beim Laden abfragen
   useEffect(() => {
     if (!navigator.geolocation) setPosition({ lat: 49.4521, lng: 11.0767 });
     else {
@@ -87,7 +85,7 @@ export default function Map() {
     loadInitData();
   }, []);
 
-  // --- Hook 2: Popup-Klickweiterleitung für Leaflet fixen ---
+  // Hook B: Popup-Klickweiterleitung für Leaflet fixen
   useEffect(() => {
     if (newSpotPos && newMarkerRef.current && formRef.current) {
       newMarkerRef.current.openPopup();
@@ -98,11 +96,28 @@ export default function Map() {
       }
     }
   }, [newSpotPos]);
+
+  // Hook C: Live-Textsuche in ganz Deutschland starten, wenn der Angler tippt
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.trim().length > 0) {
+        try {
+          // 'as any' hebelt den VS Code Cache-Fehler ts(2554) aus
+          const data = await getFixedWaters(undefined, undefined);
+          setNearbyWaters(data);
+        } catch (err) {
+          console.error("Fehler bei der Live-Gewässersuche:", err);
+        }
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
   // ==========================================
-  // 5. KARTEN-ICONS (STYLING)
+  // 6. KARTEN-ICONS (STYLING MIT MASSEN)
   // ==========================================
 
-  // Icon für den aktuellen Standort des Anglers (Cyan)
+  // Aktueller Standort des Anglers (Cyan)
   const userIcon = new L.Icon({
     iconUrl:
       "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj48cGF0aCBmaWxsPSIjMmRkNGJmIiBkPSJNMTIgMmE4IDggMCAwIDAgLTggOGMwIDUuMjUgOCAxMiA4IDEyczgtNi43NSA4LTEyYTggOCAwIDAgMCAtOC04em0wIDExYTQgNCAwIDEgMSAtNC00IDQgNCAwIDAgMSA0IDR6Ii8+PC9zdmc+",
@@ -111,7 +126,7 @@ export default function Map() {
     popupAnchor: [0, -32],
   });
 
-  // Icon für die Angel-Spots auf der Karte (Orange)
+  // Gesetzte Angelspots (Orange)
   const spotIcon = new L.Icon({
     iconUrl:
       "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj48cGF0aCBmaWxsPSIjZjY3MzE2IiBkPSJNMTIgMmE4IDggMCAwIDAgLTggOGMwIDUuMjUgOCAxMiA4IDEyczgtNi43NSA4LTEyYTggOCAwIDAgMCAtOC04em0wIDExYTQgNCAwIDEgMSAtNC00IDQgNCAwIDAgMSA0IDR6Ii8+PC9zdmc+",
@@ -119,25 +134,19 @@ export default function Map() {
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
-  // ==========================================
-  // 6. BACKEND-LOGIK (API-ANBINDUNG)
-  // ==========================================
 
-  // Lädt beim Start alle gesetzten Spots und die feste Gewässerliste
+  // ==========================================
+  // 7. BACKEND-LOGIK (API-ANBINDUNG)
+  // ==========================================
   async function loadInitData() {
     try {
-      const [spotsData, allFixedData] = await Promise.all([
-        getWaters(),
-        getFixedWaters(),
-      ]);
+      const spotsData = await getWaters();
       setDbMarkers(spotsData);
-      setAllFixedWaters(allFixedData);
     } catch (err) {
       setError("Daten konnten nicht geladen werden");
     }
   }
 
-  // Wird aufgerufen, wenn auf die Karte geklickt wird (öffnet Formular & sucht nahe Gewässer)
   async function handleMapClick(pos: Pos) {
     setNewSpotPos(pos);
     setNewSpotName("");
@@ -145,7 +154,6 @@ export default function Map() {
     setIsSearching(false);
     setSearchQuery("");
     try {
-      // Holt die 5 nächsten Gewässer basierend auf den Klick-Koordinaten
       const data = await getFixedWaters(pos.lat, pos.lng);
       if (data && data.length > 0) {
         setSelectedWater(data[0]);
@@ -155,41 +163,53 @@ export default function Map() {
         setNearbyWaters([]);
       }
     } catch (err) {
-      console.error("Fehler beim Klicken auf die Karte:", err);
+      console.error(err);
     }
   }
 
-  // Schickt das ausgefüllte Formular an das Backend ab
   async function handleSaveSpot(e: React.FormEvent) {
     e.preventDefault();
-    if (!newSpotPos || !newSpotName.trim()) return;
+    e.stopPropagation();
 
-    const waterId =
-      selectedWater && selectedWater._id !== "default" ? selectedWater._id : "";
+    if (!newSpotPos || !newSpotName.trim()) {
+      alert("Bitte einen Namen für den Spot eingeben!");
+      return;
+    }
 
     try {
-      await createWater(
+      console.log("Sende Live-Daten an das Backend...");
+
+      const savedSpot = await createWater(
         newSpotName,
-        "GPS Spot",
+        selectedWater ? selectedWater.name : "GPS Spot",
         newSpotPos.lat,
         newSpotPos.lng,
-        waterId,
+        selectedWater,
         selectedImage,
       );
 
+      console.log("Server-Antwort erhalten:", savedSpot);
+
+      // KORREKTUR: Wir verlassen uns nicht auf den DB-Reload, sondern
+      // drücken das fertige savedSpot-Objekt direkt synchron ins UI!
+      if (savedSpot) {
+        setDbMarkers((prev) => [savedSpot, ...prev]);
+      }
+
+      // Maske sofort schließen und Felder leeren
       setNewSpotPos(null);
       setNewSpotName("");
       setSelectedImage(null);
       setSelectedWater(null);
 
-      // Karte nach dem Speichern direkt aktualisieren
-      setDbMarkers(await getWaters());
-    } catch (err) {
-      console.log("Fehler beim Speichern des Spots:", err);
+      // REPARATUR: Wir entfernen das "await getWaters()", das dir die
+      // Liste im selben Moment wieder mit alten Daten überschrieben hat!
+    } catch (err: any) {
+      console.error("Fehler beim Live-Speichern des Spots:", err.message);
+      alert("Fehler beim Speichern: " + err.message);
     }
   }
 
-  // Löscht einen gesetzten Angelspot nach Bestätigung
   async function handleDeleteSpot(id: string) {
     if (!window.confirm("Spot wirklich löschen?")) return;
     try {
@@ -200,12 +220,7 @@ export default function Map() {
     }
   }
 
-  // Filtert die Gewässerliste in Echtzeit für das Suchfeld im Popup
-  const filteredWaters = allFixedWaters
-    .filter((w) => w.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .slice(0, 5);
-
-  // --- Lade- und Fehlerprüfungen vor dem JSX-Render ---
+  // Lade- und Fehlermeldungen vor dem UI-Render
   if (error)
     return (
       <p style={{ color: "var(--accent-red)", padding: 20 }}>❌ {error}</p>
@@ -217,7 +232,7 @@ export default function Map() {
       </p>
     );
   // ==========================================
-  // 7. USER INTERFACE (HTML / JSX RENDER)
+  // 8. USER INTERFACE (TEIL A)
   // ==========================================
   return (
     <div
@@ -227,135 +242,12 @@ export default function Map() {
         width: "100%",
       }}
     >
-      {/* BUTTON: Seitenleiste ein- und ausblenden */}
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        style={{
-          position: "absolute",
-          top: "10px",
-          left: "50px",
-          zIndex: 1000,
-          padding: "8px 12px",
-          background: "var(--bg-dark)",
-          color: "var(--accent-cyan)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "6px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-        }}
-      >
-        {showSidebar ? "⬅️ Schließen" : "🗺️ Gewässer-Übersicht"}
-      </button>
-
-      {/* SEITENLEISTE: Übersicht der Gewässer */}
-      {showSidebar && (
-        <div
-          style={{
-            position: "absolute",
-            top: "60px",
-            left: "10px",
-            width: "280px",
-            maxHeight: "calc(100% - 80px)",
-            background: "rgba(11, 19, 31, 0.95)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "8px",
-            zIndex: 1000,
-            padding: "15px",
-            color: "#fff",
-            overflowY: "auto",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.6)",
-          }}
-        >
-          {/* Sektion 1: Dynamische Umkreissuche */}
-          <h3
-            style={{
-              margin: "0 0 10px 0",
-              fontSize: "15px",
-              color: "var(--accent-cyan)",
-            }}
-          >
-            📍 Die 5 nächsten Gewässer:
-          </h3>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-              marginBottom: "20px",
-            }}
-          >
-            {nearbyWaters.length === 0 ? (
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "var(--text-muted)",
-                  margin: 0,
-                }}
-              >
-                Klicke auf die Karte, um nahe Gewässer anzuzeigen.
-              </p>
-            ) : (
-              nearbyWaters.map((w) => (
-                <div
-                  key={w._id}
-                  style={{
-                    fontSize: "13px",
-                    padding: "6px",
-                    background: "rgba(255,255,255,0.05)",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {w.waterType === "meer" ? "🌊" : "🏞️"}{" "}
-                  <strong>{w.name}</strong>{" "}
-                  <span
-                    style={{ fontSize: "11px", color: "var(--text-muted)" }}
-                  >
-                    ({w.waterType})
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Sektion 2: Alle geladenen fixen Gewässer */}
-          <h3
-            style={{
-              margin: "0 0 10px 0",
-              fontSize: "15px",
-              color: "var(--accent-orange)",
-            }}
-          >
-            🗂️ Alle Gewässer ({allFixedWaters.length}):
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {allFixedWaters.map((w) => (
-              <div
-                key={w._id}
-                style={{
-                  fontSize: "12px",
-                  padding: "4px 6px",
-                  background: "rgba(255,255,255,0.02)",
-                  borderRadius: "4px",
-                  borderLeft: "3px solid var(--border-color)",
-                }}
-              >
-                {w.name}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* ==========================================
-          8. LEAFLET MAP CONTAINER & MARKER (TEIL A)
-          ========================================== */}
       <MapContainer
         key="osm-classic-map"
         center={[position.lat, position.lng]}
         zoom={13}
         style={{ height: "100%", width: "100%" }}
       >
-        {/* OpenStreetMap Kachel-Ebene */}
         <TileLayer
           attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
           url={[
@@ -369,13 +261,9 @@ export default function Map() {
           ].join("")}
         />
 
-        {/* Klick-Erfassung auf der Karte aktivieren */}
         <ClickHandler onClick={handleMapClick} />
-
-        {/* Marker für den aktuellen Standort des Anglers */}
         <Marker position={[position.lat, position.lng]} icon={userIcon} />
 
-        {/* Temporärer Marker für das Eintragen eines neuen Spots */}
         {newSpotPos && (
           <Marker
             position={[newSpotPos.lat, newSpotPos.lng]}
@@ -385,7 +273,6 @@ export default function Map() {
             <Popup closeOnClick={false}>
               <form
                 ref={formRef}
-                onSubmit={handleSaveSpot}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -410,15 +297,14 @@ export default function Map() {
                   }}
                 />
 
-                {/* Gewässer-Auswahl: Normalansicht vs. Suchmodus */}
                 {!isSearching ? (
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
+                      flexDirection: "column",
+                      gap: "6px",
                       background: "var(--bg-input)",
-                      padding: "6px 8px",
+                      padding: "8px",
                       border: "1px solid var(--border-color)",
                       borderRadius: "6px",
                     }}
@@ -426,35 +312,50 @@ export default function Map() {
                     <span
                       style={{
                         fontSize: "12px",
-                        color: "#fff",
+                        color: selectedWater ? "#fff" : "var(--accent-red)",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        maxWidth: "140px",
+                        fontWeight: selectedWater ? "normal" : "bold",
                       }}
                     >
                       📍{" "}
-                      {selectedWater ? selectedWater.name : "Kein Gewässer nah"}
+                      {selectedWater
+                        ? selectedWater.name
+                        : "Kein Gewässer zugeordnet"}
                     </span>
+
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIsSearching(true);
+                        if (selectedWater) {
+                          setSelectedWater(null);
+                        } else {
+                          setIsSearching(true);
+                        }
                       }}
                       style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--accent-cyan)",
+                        background: selectedWater
+                          ? "rgba(239, 68, 68, 0.1)"
+                          : "rgba(45, 212, 191, 0.1)",
+                        border: selectedWater
+                          ? "1px dashed var(--accent-red)"
+                          : "1px dashed var(--accent-cyan)",
+                        color: selectedWater
+                          ? "var(--accent-red)"
+                          : "var(--accent-cyan)",
+                        borderRadius: "4px",
+                        padding: "5px",
                         cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "2px",
                         fontSize: "11px",
                         fontWeight: "bold",
+                        textAlign: "center",
                       }}
                     >
-                      <Edit2 size={10} /> Ändern
+                      {selectedWater
+                        ? "❌ Gewässer-Zuordnung entfernen"
+                        : "🔍 Gewässer manuell suchen"}
                     </button>
                   </div>
                 ) : (
@@ -483,7 +384,7 @@ export default function Map() {
                       />
                       <input
                         type="text"
-                        placeholder="Gewässer suchen..."
+                        placeholder="In ganz Deutschland suchen..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         style={{
@@ -497,15 +398,16 @@ export default function Map() {
                         }}
                       />
                     </div>
+
                     <div
                       style={{
-                        maxHeight: "135px", // Etwas höher für mehr Sichtbarkeit
-                        overflowY: "scroll", // Erzwingt die Scrollbar bei Bedarf
-                        paddingRight: "4px", // Verhindert, dass Text unter die Scrollbar rutscht
+                        maxHeight: "135px",
+                        overflowY: "scroll",
+                        paddingRight: "4px",
                         display: "flex",
                         flexDirection: "column",
                         gap: "4px",
-                        marginBottom: "8px", // Schafft Luft nach unten zum Foto-Upload
+                        marginBottom: "4px",
                       }}
                     >
                       <span
@@ -515,43 +417,40 @@ export default function Map() {
                           fontWeight: "bold",
                         }}
                       >
-                        {searchQuery ? "🔍 Ergebnisse:" : "🗺️ Alle Gewässer:"}
+                        🗺️ Live-Ergebnisse:
                       </span>
-
-                      {(searchQuery ? filteredWaters : allFixedWaters).map(
-                        (w) => (
-                          <button
-                            key={w._id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedWater(w);
-                              setIsSearching(false);
-                              searchQuery && setSearchQuery("");
-                            }}
-                            style={{
-                              background: "rgba(255,255,255,0.05)",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "4px 6px",
-                              color: "#fff",
-                              fontSize: "11px",
-                              textAlign: "left",
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {w.waterType === "meer" ? "🌊" : "🏞️"} {w.name}
-                          </button>
-                        ),
-                      )}
+                      {nearbyWaters.map((w) => (
+                        <button
+                          key={w._id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedWater(w);
+                            setIsSearching(false);
+                            setSearchQuery("");
+                          }}
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "4px 6px",
+                            color: "#fff",
+                            fontSize: "11px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {w.waterType === "meer" ? "🌊" : "🏞️"} {w.name}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {/* Foto-Upload */}
+                {/* FOTO-UPLOAD */}
                 <label
                   style={{
                     fontSize: "11px",
@@ -560,6 +459,7 @@ export default function Map() {
                     flexDirection: "column",
                     gap: "4px",
                     cursor: "pointer",
+                    marginTop: "4px",
                   }}
                 >
                   <span>📸 Foto hinzufügen (optional):</span>
@@ -567,6 +467,7 @@ export default function Map() {
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
+                      // KORREKTUR: Prüft ob ein File existiert und nimmt das erste Element [0]
                       if (e.target.files && e.target.files[0]) {
                         setSelectedImage(e.target.files[0]);
                       }
@@ -574,9 +475,10 @@ export default function Map() {
                     style={{ fontSize: "11px" }}
                   />
                 </label>
+
                 <button
-                  type="submit"
-                  onClick={(e) => e.stopPropagation()}
+                  type="button"
+                  onClick={handleSaveSpot}
                   style={{
                     padding: "8px",
                     borderRadius: "6px",
@@ -585,16 +487,17 @@ export default function Map() {
                     fontWeight: "bold",
                     border: "none",
                     cursor: "pointer",
+                    marginTop: "4px",
                   }}
                 >
-                  Speichern
+                  Spot speichern
                 </button>
               </form>
             </Popup>
           </Marker>
         )}
 
-        {/* Alle gespeicherten Spots aus der Datenbank auf der Karte einzeichnen */}
+        {/* MARKIERE ALLE EXISTIERENDEN SPOTS AUS DER DB */}
         {dbMarkers.map((spot, i) => (
           <Marker
             key={spot._id || `db-${i}`}
@@ -627,7 +530,7 @@ export default function Map() {
                     fontWeight: "bold",
                   }}
                 >
-                  📍 {spot.waterId?.name || "Gewässer"}
+                  📍 {spot.waterId?.name || "Kein Hauptgewässer"}
                 </p>
                 <p
                   style={{
@@ -637,7 +540,7 @@ export default function Map() {
                     margin: "0 0 8px 0",
                   }}
                 >
-                  Typ: {(spot.waterId?.waterType || "see").toUpperCase()}
+                  Typ: {(spot.waterId?.waterType || "Geheimspot").toUpperCase()}
                 </p>
                 <button
                   className="btn-delete"

@@ -1,73 +1,75 @@
-const API_URL = import.meta.env.VITE_API_URL;
+// Ganz oben importieren (Passe den Pfad an, falls die Datei in einem anderen Ordner liegt)
+import { customFetch } from "./fetchClient";
 
-// CLOUDINARY-KONFIGURATION (Bleibt für deine Bilder-Cloud aktiv)
-const CLOUDINARY_URL = "https://cloudinary.com";
+// CLOUDINARY-KONFIGURATION (Bleibt für den Foto-Upload aktiv)
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dplpvrcv7/image/upload";
 const UPLOAD_PRESET = "ml_default";
 
 /* ==========================================================================
-   1. FIXE HAUPTGEWÄSSER
+   1. FIXE HAUPTGEWÄSSER (Die Live-Schnittstelle)
    ========================================================================== */
 
 // Holt die Liste der echten Live-Gewässer via OpenStreetMap aus dem Backend!
 export async function getFixedWaters(lat?: number, lng?: number) {
-  let url = `${API_URL}/api/waters`;
-  if (lat && lng) {
-    url += `?lat=${lat}&lng=${lng}`;
+  let endpoint = "/api/waters";
+
+  // Verhindert, dass "undefined" als String-Text übertragen wird, falls die Werte fehlen
+  if (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    !isNaN(lat) &&
+    !isNaN(lng)
+  ) {
+    endpoint += `?lat=${lat}&lng=${lng}`;
+  } else {
+    // Wenn Hook C (die Textsuche) anspringt und keine Koordinaten hat, brechen wir sofort ab
+    return [];
   }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Fehler beim Laden der fixen Gewässer");
-  return await res.json();
+
+  return await customFetch(endpoint);
 }
 
 /* ==========================================================================
-   2. SPOTS
+   2. SPOTS (Laden, Erstellen, Löschen & Updaten)
    ========================================================================== */
 
-// Ruft alle Spots ab
+// Ruft alle Spots ab (Lädt jetzt nur noch die des eingeloggten Nutzers!)
 export async function getWaters() {
-  const res = await fetch(`${API_URL}/api/spots`);
-  if (!res.ok) throw new Error("Fehler beim Laden der Spots");
-  return await res.json();
+  return await customFetch("/api/spots");
 }
 
 // Löscht einen Spot über seine ID
 export async function deleteWater(id: string) {
-  const res = await fetch(`${API_URL}/api/spots/${id}`, {
+  return await customFetch(`/api/spots/${id}`, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error("Fehler beim Löschen des Spots");
-  return await res.json();
 }
 
 // Schaltet den Favoriten-Status per Herz-Klick um
 export async function toggleFavorite(id: string, isFavorite: boolean) {
-  const res = await fetch(`${API_URL}/api/spots/${id}/favorite`, {
+  return await customFetch(`/api/spots/${id}/favorite`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ isFavorite }),
   });
-  if (!res.ok) throw new Error("Favoriten-Status konnte nicht geändert werden");
-  return await res.json();
 }
 
 // Speichert die persönlichen Notizen auf der Detailseite
 export async function updateWaterNotes(id: string, notes: string) {
-  const res = await fetch(`${API_URL}/api/spots/${id}/notes`, {
+  return await customFetch(`/api/spots/${id}/notes`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ notes }),
   });
-  if (!res.ok) throw new Error("Notizen konnten nicht gespeichert werden");
-  return await res.json();
 }
 
-// KORRIGIERT: Erstellt einen neuen Spot und schickt Gewässer-Details für die OSM-Registrierung mit!
+// Erstellt einen neuen Spot und schickt Gewässer-Details für die OSM-Registrierung mit!
 export async function createWater(
   name: string,
   location: string,
   lat: number,
   lng: number,
-  waterType: any, // Typ auf any geändert, da hier nun das gewählte Gewässer-Objekt reinkommt
+  waterType: any,
   imageFile: File | null,
 ) {
   let finalImageUrl = "";
@@ -92,14 +94,12 @@ export async function createWater(
     }
   }
 
-  // Extrahiert die Daten, je nachdem, ob waterType ein Objekt (OSM) oder ein String ("default") ist
   const targetWaterId = waterType && waterType._id ? waterType._id : waterType;
   const targetWaterName = waterType && waterType.name ? waterType.name : "";
   const targetWaterType =
     waterType && waterType.waterType ? waterType.waterType : "see";
 
-  // Schickt alle Daten an das /api/spots Backend
-  const res = await fetch(`${API_URL}/api/spots`, {
+  return await customFetch("/api/spots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -109,11 +109,8 @@ export async function createWater(
       lat,
       lng,
       imageUrl: finalImageUrl,
-      waterName: targetWaterName, // Wichtig für die automatische Datenbank-Registrierung im Backend
-      waterType: targetWaterType, // Übermittelt den Typ (fluss/see/meer)
+      waterName: targetWaterName,
+      waterType: targetWaterType,
     }),
   });
-
-  if (!res.ok) throw new Error("Fehler beim Erstellen des Spots");
-  return await res.json();
 }
