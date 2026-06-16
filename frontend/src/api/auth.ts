@@ -25,7 +25,7 @@ export async function login(email: string, password: string) {
 /* ==========================================================================
    2. PROFILE / GET ME (Absolut abgesichert via customFetch)
    ========================================================================== */
-export async function getMe(token: string) {
+export async function getMe(_token: string) {
   try {
     // KORREKTUR: customFetch übernimmt die URL-Verkettung und zieht das Token im Hintergrund.
     // Das token-Argument wird hier ignoriert, damit Altsysteme in App.tsx nicht crashen.
