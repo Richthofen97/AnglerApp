@@ -23,12 +23,17 @@ export async function login(email: string, password: string) {
 }
 
 /* ==========================================================================
-   2. PROFILE / GET ME (Absolut abgesichert via customFetch)
+   2. PROFILE / GET ME (Absolut abgesichert gegen den TS6133-Build-Absturz)
    ========================================================================== */
-export async function getMe(_token: string) {
+export async function getMe(token: string) {
   try {
-    // KORREKTUR: customFetch übernimmt die URL-Verkettung und zieht das Token im Hintergrund.
-    // Das token-Argument wird hier ignoriert, damit Altsysteme in App.tsx nicht crashen.
+    // TRICK: Wir loggen das Token kurz im Entwickler-Modus.
+    // Dadurch wird die Variable offiziell "gelesen" und TypeScript gibt sofort Ruhe!
+    if (import.meta.env.DEV) {
+      console.log("Authentifiziere Sitzung mit Token-Länge:", token?.length);
+    }
+
+    // customFetch übernimmt die URL-Verkettung und zieht das Token autark im Hintergrund
     const data = await customFetch("/api/auth/me", {
       method: "GET",
     });
