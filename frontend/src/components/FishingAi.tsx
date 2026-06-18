@@ -53,15 +53,20 @@ export default function FishingAI({ isOpen, onClose }: FishingAIProps) {
     if (!input.trim()) return;
 
     const userText = input.trim();
-    setMessages((prev) => [...prev, { sender: "user", text: userText }]);
+    const newUserMessage: ChatMessage = { sender: "user", text: userText };
+
+    // 1. Erstelle die aktualisierte History manuell vorab für den API-Call
+    const updatedHistory = [...messages, newUserMessage];
+
+    // 2. State für das UI aktualisieren
+    setMessages(updatedHistory);
     setInput("");
     setIsTyping(true);
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-      // Sende die Nachricht, den Verlauf und deine echten Daten an das Backend
-      // Endpunkt auf '/api/ai/generate' angepasst
+      // 3. Sende die korrekte, aktuelle History an das Backend
       const response = await fetch(`${apiUrl}/api/ai/generate`, {
         method: "POST",
         headers: {
@@ -69,18 +74,18 @@ export default function FishingAI({ isOpen, onClose }: FishingAIProps) {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
-          prompt: userText, // Auf 'prompt' geändert, passend zur Backend-Erwartung
-          history: messages,
-          context: userDataContext, // Deine echten Fänge und Spots fliegen hier mit!
+          prompt: userText,
+          history: updatedHistory, // Nutzt die sofort aktualisierte History
+          context: userDataContext,
         }),
       });
 
       if (!response.ok) throw new Error("Server antwortet nicht");
       const data = await response.json();
 
-      // Auf 'data.text' geändert, da das Backend '{ text: result }' zurückgibt
       setMessages((prev) => [...prev, { sender: "ai", text: data.text }]);
     } catch (err) {
+      console.error("KI-Fehler:", err);
       setMessages((prev) => [
         ...prev,
         {

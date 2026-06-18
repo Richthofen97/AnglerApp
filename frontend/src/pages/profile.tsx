@@ -11,6 +11,7 @@ import {
   Scale,
   ShieldAlert,
   Award,
+  Lock, // IMPORT ERGÄNZT für das Passwort-Icon
 } from "lucide-react";
 import "../App.css";
 
@@ -26,6 +27,16 @@ export default function Profile() {
   const [selectedFish, setSelectedFish] = useState<FishInfo | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("Alle");
 
+  // NEUE STATES FÜR DIE PASSWORT-ÄNDERUNG
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdMessage, setPwdMessage] = useState<{
+    text: string;
+    isError: boolean;
+  } | null>(null);
+
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
     getMe(token)
@@ -38,6 +49,66 @@ export default function Profile() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
+  };
+
+  // LOGIK FÜR DIE PASSWORT-ÄNDERUNG (Integriertes Fetch analog zur App-Struktur)
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdMessage(null);
+
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPwdMessage({ text: "Bitte alle Felder ausfüllen.", isError: true });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwdMessage({
+        text: "Das neue Passwort muss mindestens 6 Zeichen lang sein.",
+        isError: true,
+      });
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+
+      // Nutzt dieselbe IP/Port-Basis deines Backends
+      const response = await fetch("http://10.10.1", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newPassword: newPassword.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPwdMessage({
+          text: "Passwort erfolgreich aktualisiert! ✅",
+          isError: false,
+        });
+        setCurrentPassword("");
+        setNewPassword("");
+        setTimeout(() => setShowPasswordModal(false), 1500);
+      } else {
+        setPwdMessage({
+          text: data.message || "Fehler beim Ändern des Passworts.",
+          isError: true,
+        });
+      }
+    } catch (err) {
+      setPwdMessage({
+        text: "Verbindung zum Server fehlgeschlagen.",
+        isError: true,
+      });
+    } finally {
+      setPwdLoading(false);
+    }
   };
 
   // Filtert live nach Suchbegriff UND ausgewählter Kategorie
@@ -57,6 +128,7 @@ export default function Profile() {
     "Salmonide",
     "Meeresfisch",
   ];
+
   return (
     <div
       className="dashboard-container"
@@ -125,24 +197,190 @@ export default function Profile() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
+          {/* BUTTON-GRUPPE: Ändern links neben Abmelden platziert */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={() => {
+                setPwdMessage(null);
+                setShowPasswordModal(true);
+              }}
+              style={{
+                background: "rgba(6, 182, 212, 0.15)",
+                border: "1px solid rgba(6, 182, 212, 0.4)",
+                color: "var(--accent-cyan)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              <Lock size={14} /> Ändern
+            </button>
+
+            <button
+              onClick={handleLogout}
+              style={{
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                color: "#ef4444",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              <LogOut size={14} /> Abmelden
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL / POPUP OVERLAY FÜR DIE PASSWORT-ÄNDERUNG */}
+      {showPasswordModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(15, 23, 42, 0.8)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
             style={{
-              background: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              color: "#ef4444",
-              borderRadius: "10px",
-              padding: "8px 12px",
-              fontSize: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              cursor: "pointer",
-              fontWeight: "bold",
+              background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "400px",
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
             }}
           >
-            <LogOut size={14} /> Abmelden
-          </button>
+            <h3
+              style={{ margin: "0 0 16px 0", color: "#fff", fontSize: "18px" }}
+            >
+              🔒 Passwort ändern
+            </h3>
+
+            <form
+              onSubmit={handleChangePasswordSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+            >
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                <label style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  Aktuelles Passwort
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Dein altes Passwort"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "#0b131f",
+                    color: "#fff",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                <label style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  Neues Passwort
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mindestens 6 Zeichen"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "#0b131f",
+                    color: "#fff",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+
+              {pwdMessage && (
+                <p
+                  style={{
+                    margin: "4px 0 0 0",
+                    fontSize: "13px",
+                    color: pwdMessage.isError
+                      ? "var(--accent-orange)"
+                      : "#22c55e",
+                  }}
+                >
+                  {pwdMessage.text}
+                </p>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "transparent",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwdLoading}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "var(--accent-cyan)",
+                    color: "#0f172a",
+                    cursor: pwdLoading ? "not-allowed" : "pointer",
+                    fontWeight: "600",
+                    opacity: pwdLoading ? 0.7 : 1,
+                  }}
+                >
+                  {pwdLoading ? "Prüfen..." : "Speichern"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
