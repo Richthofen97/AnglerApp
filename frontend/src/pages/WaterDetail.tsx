@@ -4,6 +4,9 @@ import { getWaters, deleteWater } from "../api/waters";
 // NEW: Importiert die eben erstellten API-Funktionen für dein Fangbuch
 import { getCatchesForSpot, createCatch } from "../api/catches";
 import { customFetch } from "../api/fetchClient";
+// NEU: Importiert das Lexikon für die Dropdown-Auswahl
+import { FISCH_LEXIKON } from "../pages/fishData";
+
 import {
   ArrowLeft,
   MapPin,
@@ -18,6 +21,7 @@ import {
 } from "lucide-react";
 import "../App.css";
 import { getWaterImage } from "../utils/waterImageHelper";
+
 type WaterSpot = {
   _id: string;
   name: string;
@@ -53,13 +57,14 @@ export default function WaterDetail() {
   // ==========================================================================
   const [catches, setCatches] = useState<FishCatch[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSpecies, setNewSpecies] = useState("");
+
+  // NEU: Setzt standardmäßig den ersten Fisch aus deinem Lexikon als Vorauswahl
+  const [newSpecies, setNewSpecies] = useState(FISCH_LEXIKON[0]?.name || "");
   const [newWeight, setNewWeight] = useState<string>("");
   const [newLength, setNewLength] = useState<string>("");
   const [newCatchNotes, setNewCatchNotes] = useState("");
   const [catchImage, setCatchImage] = useState<File | null>(null);
   const [isSavingCatch, setIsSavingCatch] = useState(false);
-
   useEffect(() => {
     async function loadDetailData() {
       if (!id) return;
@@ -123,21 +128,19 @@ export default function WaterDetail() {
       alert("Notiz konnte nicht gespeichert werden.");
     }
   };
-
   // ==========================================================================
   // NEW FUNCTION: NEUEN FISCH IN DIE DATENBANK EINTRAGEN
   // ==========================================================================
   const handleSaveCatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !newSpecies.trim()) {
-      alert("Bitte gib zumindest die Fischart an!");
+      alert("Bitte wähle eine Fischart aus!");
       return;
     }
 
     try {
       setIsSavingCatch(true);
 
-      // Nutzt die vorhin erstellte API-Funktion aus catches.ts
       const savedCatch = await createCatch(
         id,
         newSpecies.trim(),
@@ -151,7 +154,7 @@ export default function WaterDetail() {
       setCatches((prev) => [savedCatch, ...prev]);
 
       // Formular zurücksetzen & Modal schließen
-      setNewSpecies("");
+      setNewSpecies(FISCH_LEXIKON?.[0]?.name || "");
       setNewWeight("");
       setNewLength("");
       setNewCatchNotes("");
@@ -271,7 +274,6 @@ export default function WaterDetail() {
           </p>
         </div>
       </div>
-
       {spotWeather && (
         <div
           style={{
@@ -518,7 +520,6 @@ export default function WaterDetail() {
           >
             <Fish size={16} color="var(--accent-cyan)" /> Fänge an diesem Spot
           </h3>
-          {/* Runder Button mit Plus-Symbol zum Öffnen des Fangbuch-Eintrags */}
           <button
             onClick={() => setIsModalOpen(true)}
             style={{
@@ -551,7 +552,6 @@ export default function WaterDetail() {
             Plus, um deinen ersten Fisch zu loggen!
           </p>
         ) : (
-          /* Scrollbarer Container für deine Fang-Karten im Dark-Design */
           <div
             style={{
               display: "flex",
@@ -573,7 +573,6 @@ export default function WaterDetail() {
                   alignItems: "center",
                 }}
               >
-                {/* Zeigt das Fischfoto, falls eins hochgeladen wurde, ansonsten ein dunkles Fallback-Fischsymbol */}
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
@@ -607,7 +606,6 @@ export default function WaterDetail() {
                   </div>
                 )}
 
-                {/* Text-Daten der Fang-Kard */}
                 <div style={{ flex: 1 }}>
                   <h4
                     style={{
@@ -658,9 +656,7 @@ export default function WaterDetail() {
           </div>
         )}
       </div>
-      {/* ==========================================================================
-         POPOVER MODAL / FORMULAR FÜR DEN NEUEN FANG-EINTRAG
-         ========================================================================== */}
+      {/* POPOVER MODAL / FORMULAR FÜR DEN NEUEN FANG-EINTRAG */}
       {isModalOpen && (
         <div
           style={{
@@ -734,19 +730,16 @@ export default function WaterDetail() {
               onSubmit={handleSaveCatch}
               style={{ display: "flex", flexDirection: "column", gap: "12px" }}
             >
-              {/* Feld: Fischart */}
+              {/* NEU: DROPDOWN-AUSWAHL FÜR DIE FISCHART AUS DEM LEXIKON */}
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "4px" }}
               >
                 <label style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   Fischart *
                 </label>
-                <input
-                  type="text"
-                  required
+                <select
                   value={newSpecies}
                   onChange={(e) => setNewSpecies(e.target.value)}
-                  placeholder="z.B. Hecht, Zander, Karpfen..."
                   style={{
                     padding: "10px",
                     borderRadius: "10px",
@@ -754,8 +747,16 @@ export default function WaterDetail() {
                     border: "1px solid var(--border-color)",
                     color: "#fff",
                     fontSize: "14px",
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
-                />
+                >
+                  {FISCH_LEXIKON.map((fish, idx) => (
+                    <option key={idx} value={fish.name}>
+                      {fish.name} ({fish.category})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Zeile: Gewicht & Länge */}

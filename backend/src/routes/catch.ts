@@ -95,5 +95,34 @@ router.post("/", verifyToken, async (req: any, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+/* -------------------------------------------------------------
+   4. DELETE a specific catch (/api/catches/:id)
+------------------------------------------------------------- */
+router.delete("/:id", verifyToken, async (req: any, res) => {
+  try {
+    console.log(
+      `🗑️ LÖSCH-ANFRAGE FÜR FANG-ID: ${req.params.id} VON USER: ${req.user.id}`,
+    );
+
+    // Findet den Fang anhand der ID und stellt sicher, dass er dem eingeloggten User gehört
+    const deletedCatch = await Catch.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id, // Sicherheits-Check: Nur eigene Fänge löschen!
+    });
+
+    if (!deletedCatch) {
+      return res
+        .status(404)
+        .json({
+          message: "Fang nicht gefunden oder keine Berechtigung zum Löschen.",
+        });
+    }
+
+    res.json({ message: "Fang erfolgreich gelöscht! ✅" });
+  } catch (err: any) {
+    console.error("Fehler bei DELETE /api/catches/:id:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 export default router;

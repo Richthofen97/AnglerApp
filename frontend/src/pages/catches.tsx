@@ -1,6 +1,9 @@
+// TEIL 1 VON 3: IMPORTS UND STATES
 import { useEffect, useState } from "react";
-import { getAllCatches, createCatch } from "../api/catches";
-import { getSpots } from "../api/spots"; // NEW: Holt deine persönlichen Spots fürs Dropdown
+// deleteCatch wurde hier in den API-Imports ergänzt
+import { getAllCatches, createCatch, deleteCatch } from "../api/catches";
+import { getSpots } from "../api/spots";
+import { FISCH_LEXIKON } from "../pages/fishData";
 import {
   Fish,
   Scale,
@@ -10,6 +13,7 @@ import {
   Notebook,
   Plus,
   Camera,
+  Trash2, // Neues Icon für den Lösch-Button
 } from "lucide-react";
 import "../App.css";
 
@@ -31,7 +35,7 @@ type PersonalSpot = {
 
 export default function Diary() {
   const [catches, setCatches] = useState<GlobalCatch[]>([]);
-  const [spots, setSpots] = useState<PersonalSpot[]>([]); // NEW: State für deine Spots
+  const [spots, setSpots] = useState<PersonalSpot[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals & Detail-States
@@ -40,17 +44,18 @@ export default function Diary() {
 
   // Formular-States für den neuen Fang
   const [selectedSpotId, setSelectedSpotId] = useState("");
-  const [newSpecies, setNewSpecies] = useState("");
+
+  const [newSpecies, setNewSpecies] = useState(FISCH_LEXIKON[0]?.name || "");
   const [newWeight, setNewWeight] = useState("");
   const [newLength, setNewLength] = useState("");
   const [newCatchNotes, setNewCatchNotes] = useState("");
   const [catchImage, setCatchImage] = useState<File | null>(null);
   const [isSavingCatch, setIsSavingCatch] = useState(false);
-
+  const [isDeleting, setIsDeleting] = useState(false); // Neuer State für den Lösch-Vorgang
+  // TEIL 2 VON 3: LOGIK, USEEFFECT UND LÖSCH-FUNKTION
   useEffect(() => {
     async function loadDiaryData() {
       try {
-        // Lädt Fänge und persönliche Spots parallel aus deiner MongoDB
         const [catchData, spotData] = await Promise.all([
           getAllCatches(),
           getSpots(),
@@ -59,7 +64,6 @@ export default function Diary() {
         setCatches(catchData);
         setSpots(spotData);
 
-        // Falls Spots existieren, setzen wir den ersten direkt als Vorauswahl im Dropdown
         if (spotData && spotData.length > 0) {
           setSelectedSpotId(spotData[0]._id);
         }
@@ -72,6 +76,35 @@ export default function Diary() {
     }
     loadDiaryData();
   }, []);
+
+  // NEUE FUNKTION: LÖSCHEN EINES FANGS
+  const handleDeleteCatch = async (catchId: string) => {
+    const confirmDelete = window.confirm(
+      "Möchtest du diesen Fang wirklich unwiderruflich löschen?",
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setIsDeleting(true);
+
+      // Ruft die DELETE-Route deines Backends auf
+      await deleteCatch(catchId);
+
+      // Entfernt den gelöschten Fang sofort aus dem UI-State
+      setCatches((prev) => prev.filter((item) => item._id !== catchId));
+
+      // Schließt das Detail-Modal
+      setSelectedCatch(null);
+
+      alert("Der Fang wurde erfolgreich gelöscht.");
+    } catch (err) {
+      console.error("Fehler beim Löschen des Fangs:", err);
+      alert("Fang konnte nicht gelöscht werden.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSaveGlobalCatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSpotId) {
@@ -79,7 +112,7 @@ export default function Diary() {
       return;
     }
     if (!newSpecies.trim()) {
-      alert("Bitte gib die Fischart an!");
+      alert("Bitte wähle eine Fischart aus!");
       return;
     }
 
@@ -95,7 +128,6 @@ export default function Diary() {
         catchImage,
       );
 
-      // LIVE-UPDATE: Den neuen Fang direkt oben ins Tagebuch-Array schieben
       const associatedSpot = spots.find((s) => s._id === selectedSpotId);
       const uiCatch: GlobalCatch = {
         ...savedCatch,
@@ -110,8 +142,7 @@ export default function Diary() {
 
       setCatches((prev) => [uiCatch, ...prev]);
 
-      // Formular zurücksetzen & schließen
-      setNewSpecies("");
+      setNewSpecies(FISCH_LEXIKON[0]?.name || "");
       setNewWeight("");
       setNewLength("");
       setNewCatchNotes("");
@@ -133,13 +164,13 @@ export default function Diary() {
         Lade dein Tagebuch...
       </div>
     );
-
+  // TEIL 3.1 VON 3: DIARY-LAYOUT UND DETAILKARTE
   return (
     <div
       className="dashboard-container"
       style={{ paddingBottom: "80px", paddingInline: "16px" }}
     >
-      {/* HEADER-ZEILE MIT NEUEM RECHTEN ADD-BUTTON */}
+      {/* HEADER-ZEILE MIT RECHTEN ADD-BUTTON */}
       <div
         style={{
           display: "flex",
@@ -178,7 +209,6 @@ export default function Diary() {
           <Plus size={16} /> Fang loggen
         </button>
       </div>
-
       {catches.length === 0 ? (
         <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
           Noch keine Einträge im Tagebuch vorhanden. Klicke oben auf "Fang
@@ -223,7 +253,6 @@ export default function Diary() {
                   <Fish size={28} color="var(--text-muted)" />
                 </div>
               )}
-
               <div
                 style={{
                   flex: 1,
@@ -281,7 +310,7 @@ export default function Diary() {
           ))}
         </div>
       )}
-      {/* DETEILLIERTE FANGKARTE (MODAL 1) */}
+      {/* DETAILLIERTE FANGKARTE (MODAL 1) */}
       {selectedCatch && (
         <div
           style={{
@@ -358,6 +387,7 @@ export default function Diary() {
                 ✕
               </button>
             </div>
+
             <div
               style={{
                 padding: "20px",
@@ -517,12 +547,46 @@ export default function Diary() {
                   </p>
                 </div>
               )}
+
+              {/* DER NEUE LÖSCH-BUTTON AM ENDE DER DETAILKARTE */}
+              <div
+                style={{
+                  borderTop: "1px solid var(--border-color)",
+                  paddingTop: "12px",
+                  marginTop: "4px",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => handleDeleteCatch(selectedCatch._id)}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    color: "#ef4444",
+                    borderRadius: "10px",
+                    padding: "8px 14px",
+                    fontSize: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: isDeleting ? "not-allowed" : "pointer",
+                    fontWeight: "bold",
+                    opacity: isDeleting ? 0.6 : 1,
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {isDeleting ? "Löscht..." : "Fang löschen"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* NEW: FANG EINTRAGEN MODAL (MODAL 2) WITH SPOT-DROPDOWN */}
+      {/* FANG EINTRAGEN MODAL (MODAL 2) WITH SPOT- & LEXIKON-DROPDOWN */}
       {isModalOpen && (
         <div
           style={{
@@ -594,7 +658,6 @@ export default function Diary() {
               onSubmit={handleSaveGlobalCatch}
               style={{ display: "flex", flexDirection: "column", gap: "12px" }}
             >
-              {/* DROPDOWN-AUSWAHL FÜR DEINE PERSÖNLICHEN SPOTS */}
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "4px" }}
               >
@@ -633,12 +696,9 @@ export default function Diary() {
                 <label style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   Fischart *
                 </label>
-                <input
-                  type="text"
-                  required
+                <select
                   value={newSpecies}
                   onChange={(e) => setNewSpecies(e.target.value)}
-                  placeholder="z.B. Hecht, Zander, Barsch..."
                   style={{
                     padding: "10px",
                     borderRadius: "10px",
@@ -649,8 +709,15 @@ export default function Diary() {
                     width: "100%",
                     boxSizing: "border-box",
                   }}
-                />
+                >
+                  {FISCH_LEXIKON.map((fish, idx) => (
+                    <option key={idx} value={fish.name}>
+                      {fish.name} ({fish.category})
+                    </option>
+                  ))}
+                </select>
               </div>
+
               <div style={{ display: "flex", gap: "12px" }}>
                 <div
                   style={{

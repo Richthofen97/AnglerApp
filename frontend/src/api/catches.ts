@@ -66,3 +66,11 @@ export async function createCatch(
 export async function getAllCatches() {
   return await customFetch("/api/catches");
 }
+/* ==========================================================================
+   4. FANG LÖSCHEN
+   ========================================================================== */
+export async function deleteCatch(catchId: string) {
+  return await customFetch(`/api/catches/${catchId}`, {
+    method: "DELETE",
+  });
+}

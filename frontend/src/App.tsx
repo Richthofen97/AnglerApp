@@ -6,7 +6,9 @@ import Home from "./pages/home";
 import Profile from "./pages/profile";
 import Catches from "./pages/catches";
 import Waters from "./pages/waters";
-import BottomNav from "./components/BottomNav"; // Pfad ggf. anpassen
+import Community from "./pages/community";
+import Lexikon from "./pages/lexikon";
+import BottomNav from "./components/BottomNav";
 import { getMe } from "./api/auth";
 
 console.log("FRONTEND START");
@@ -84,8 +86,13 @@ export default function App() {
               <Route path="/profil" element={<Profile />} />
               <Route path="/faenge" element={<Catches />} />
               <Route path="/gewaesser" element={<Waters />} />
-              <Route path="*" element={<Navigate to="/" />} />
+
+              {/* NEUE ROUTEN */}
+              <Route path="/community" element={<Community />} />
+              <Route path="/lexikon" element={<Lexikon />} />
+
               <Route path="/gewaesser/:id" element={<WaterDetail />} />
+              <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>
 
