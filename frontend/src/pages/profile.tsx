@@ -51,7 +51,7 @@ export default function Profile() {
     navigate("/login");
   };
 
-  // LOGIK FÜR DIE PASSWORT-ÄNDERUNG (Integriertes Fetch analog zur App-Struktur)
+  // LOGIK FÜR DIE PASSWORT-ÄNDERUNG
   const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwdMessage(null);
@@ -72,8 +72,11 @@ export default function Profile() {
     try {
       const token = localStorage.getItem("token") || "";
 
-      // Nutzt dieselbe IP/Port-Basis deines Backends
-      const response = await fetch("http://10.10.1", {
+      // Nutzt die im Render-Dashboard konfigurierte Backend-URL (und lokal den Fallback)
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+      // Dynamischer Endpunkt für die Passwort-Änderung (passe den Pfad '/api/auth/change-password' ggf. an deine Backend-Route an)
+      const response = await fetch(`${apiUrl}/api/auth/change-password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
