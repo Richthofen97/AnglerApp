@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function Community() {
   return (
     <div style={{ padding: "24px", color: "#fff", paddingBottom: "100px" }}>
