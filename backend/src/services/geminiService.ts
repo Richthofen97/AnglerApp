@@ -17,9 +17,21 @@ export const generateText = async (
   context: FishingContext = { spots: [], catches: [] },
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    // Sicherheitsprüfung für die Produktionsumgebung auf Render
+    if (!apiKey) {
+      console.error(
+        "Kritischer Fehler: GEMINI_API_KEY ist in den Umgebungsvariablen nicht definiert!",
+      );
+      throw new Error("API-Konfigurationsfehler auf dem Server.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Fallbacks einbauen, falls Datenstrukturen unvollständig aus der DB kommen
+    const safeSpots = context?.spots || [];
+    const safeCatches = context?.catches || [];
 
     // 1. System-Instruction für die Persönlichkeit und die MongoDB-Daten bauen
     const systemInstruction = `
@@ -27,17 +39,20 @@ export const generateText = async (
       Deine Antworten sind präzise, hilfreich und nutzen Fachbegriffe aus dem Angelsport (z.B. Montagen, Köderführung, Wetterbedingungen).
       
       Du hast Zugriff auf die echten Profildaten des Anglers aus der Datenbank:
-      - REGISTRIERTE SPOTS: ${JSON.stringify(context.spots)}
-      - BISHERIGE FÄNGE: ${JSON.stringify(context.catches)}
+      - REGISTRIERTE SPOTS: ${JSON.stringify(safeSpots)}
+      - BISHERIGE FÄNGE: ${JSON.stringify(safeCatches)}
       
       Nutze diese Daten aktiv! Wenn der Nutzer nach seinen Gewässern, gefangenen Fischen oder Taktiken fragt, analysiere diese Listen und antworte bezogen auf seine echten Einträge.
     `;
 
     // 2. Den bisherigen Chatverlauf für das SDK in das richtige Format mappen
-    const formattedContents = history.map((msg) => ({
-      role: msg.sender === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    }));
+    // Verhindert Abstürze durch Überprüfung auf valide Textinhalte
+    const formattedContents = history
+      .filter((msg) => msg && msg.text && msg.text.trim() !== "")
+      .map((msg) => ({
+        role: msg.sender === "user" ? "user" : "model",
+        parts: [{ text: msg.text }],
+      }));
 
     // Die aktuelle Nachricht des Nutzers an das Ende des Verlaufs anhängen
     formattedContents.push({
@@ -55,8 +70,11 @@ export const generateText = async (
     });
 
     return response.text || "Keine Antwort erhalten.";
-  } catch (error) {
-    console.error("Gemini API Fehler:", error);
-    throw new Error("Fehler bei der Kommunikation mit der KI-API");
+  } catch (error: any) {
+    console.error("Gemini API Fehler im Service:", error);
+    // Detailierte Fehlermeldung für die Render-Logs beibehalten
+    throw new Error(
+      `Fehler bei der Kommunikation mit der KI-API: ${error.message || error}`,
+    );
   }
 };
