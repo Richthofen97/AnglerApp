@@ -132,7 +132,7 @@ export default function Profile() {
     }
   };
 
-  // TEIL 3.1 VON 3: PROFIL-LAYOUT UND SORTIERTE FANGSTATISTIK
+  // TEIL 3.1 VON 3 (ANGEPASST): PROFIL-LAYOUT MIT FLEXIBLEM BUTTON-UMBRUCH
   if (loading) {
     return (
       <div style={{ color: "var(--text-muted)", padding: 20 }}>
@@ -168,10 +168,19 @@ export default function Profile() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap", // Erlaubt den Buttons, auf Handys nach unten zu springen
+            rowGap: "14px", // Sorgt für Abstand nach oben, wenn sie umbrechen
             marginBottom: "24px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              minWidth: "200px",
+            }}
+          >
             <div
               style={{
                 width: "44px",
@@ -182,17 +191,21 @@ export default function Profile() {
                 alignItems: "center",
                 justifyContent: "center",
                 border: "1px solid var(--border-color)",
+                flexShrink: 0, // Verhindert, dass das Icon auf Handys gequetscht wird
               }}
             >
               <User size={20} color="var(--accent-cyan)" />
             </div>
-            <div>
+            <div style={{ overflow: "hidden" }}>
               <h3
                 style={{
                   margin: 0,
                   fontSize: "16px",
                   color: "#fff",
                   fontWeight: "bold",
+                  whiteSpace: "nowrap",
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
                 }}
               >
                 {user.username}
@@ -202,6 +215,9 @@ export default function Profile() {
                   margin: "2px 0 0 0",
                   fontSize: "12px",
                   color: "var(--text-muted)",
+                  whiteSpace: "nowrap",
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
                 }}
               >
                 {user.email}
@@ -210,7 +226,14 @@ export default function Profile() {
           </div>
 
           {/* BUTTON-GRUPPE */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginLeft: "auto",
+            }}
+          >
             <button
               onClick={() => {
                 setPwdMessage(null);
@@ -228,6 +251,7 @@ export default function Profile() {
                 gap: "6px",
                 cursor: "pointer",
                 fontWeight: "bold",
+                whiteSpace: "nowrap",
               }}
             >
               <Lock size={14} /> Ändern
@@ -247,6 +271,7 @@ export default function Profile() {
                 gap: "6px",
                 cursor: "pointer",
                 fontWeight: "bold",
+                whiteSpace: "nowrap",
               }}
             >
               <LogOut size={14} /> Abmelden
