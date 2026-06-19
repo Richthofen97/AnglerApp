@@ -79,11 +79,10 @@ export default function App() {
                   <Home
                     username={user?.username ?? ""}
                     email={user?.email ?? ""}
-                    onLogout={logout}
-                  />
+                    onLogout={logout} 
                 }
               />
-              <Route path="/profil" element={<Profile />} />
+              <Route path="/profil" element={<Profile onLogout={logout} />} />
               <Route path="/faenge" element={<Catches />} />
               <Route path="/gewaesser" element={<Waters />} />
 

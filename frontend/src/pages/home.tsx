@@ -43,6 +43,7 @@ const fallbackWeatherData = {
 
 export default function Home({
   username,
+  email: _email,
   onLogout,
 }: {
   username: string;
