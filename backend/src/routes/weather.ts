@@ -16,18 +16,18 @@ router.get("/", async (req, res) => {
       : "11.0767";
 
     const baseUrl = "https://api.open-meteo.com/v1/forecast?";
-
-    // pressure_msl durch relative_humidity_2m ersetzt
     const params =
       "temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m";
-    const weatherUrl = `${baseUrl}latitude=${latitude}&longitude=${longitude}&hourly=${params}&current=${params}&timezone=auto&forecast_days=1`;
+
+    // Wichtig: Wir erzwingen Europe/Berlin direkt in der Open-Meteo API
+    const weatherUrl = `${baseUrl}latitude=${latitude}&longitude=${longitude}&hourly=${params}&current=${params}&timezone=Europe/Berlin&forecast_days=1`;
 
     console.log(
       "=== LADE WETTER FÜR KOORDINATEN ===",
       `Lat: ${latitude}, Lng: ${longitude}`,
     );
 
-    const response = await axios.get(weatherUrl, { timeout: 5000 });
+    const response = await axios.get(weatherUrl, { timeout: 7000 }); // Timeout leicht erhöht auf 7s
 
     if (!response.data || !response.data.hourly || !response.data.current) {
       throw new Error("Ungültige Antwortstruktur von Open-Meteo");
@@ -43,11 +43,9 @@ router.get("/", async (req, res) => {
 
       let score = 50;
 
-      // Wind-Score
       if (wind < 15) score += 15;
       else if (wind > 30) score -= 20;
 
-      // KORREKTUR: Die Arrays wurden wieder vollständig befüllt
       const cloudyCodes = "1,2,3".split(",").map(Number);
       const rainCodes = "51,53,55,61,63,65,66,67,80,81,82"
         .split(",")
@@ -64,8 +62,15 @@ router.get("/", async (req, res) => {
       return Math.max(10, Math.min(100, score));
     });
 
-    const currentHourIndex = new Date().getHours();
-    const currentBiteIndex = biteIndexHourly[currentHourIndex] || 50;
+    // FIX: Holt die aktuelle Stunde passend zur deutschen Zeitzone (Europe/Berlin)
+    const currentHourInGermany = parseInt(
+      new Date().toLocaleString("de-DE", {
+        hour: "2-digit",
+        hour12: false,
+        timeZone: "Europe/Berlin",
+      }),
+    );
+    const currentBiteIndex = biteIndexHourly[currentHourInGermany] || 50;
 
     return res.json({
       current: {
@@ -78,25 +83,19 @@ router.get("/", async (req, res) => {
       hourlyBiteIndex: biteIndexHourly,
     });
   } catch (err: any) {
-    console.error(
-      "Wetter-Backend Fehler abgefangen, nutze Fallback:",
-      err.message,
-    );
+    // WICHTIG: Loggt den echten Fehler im Render-Dashboard, damit wir ihn sehen!
+    console.error("❌ ECHTER WETTER-FEHLER AUF RENDER:", err.message);
 
-    const mockTemp = Math.round(15 + Math.random() * 8);
-    const mockWind = Math.round(5 + Math.random() * 15);
-    const mockBite = Math.round(45 + Math.random() * 40);
-    const mockHumidity = Math.round(55 + Math.random() * 20);
-
+    // Bessere Fallback-Werte (statisch statt Math.random), damit man merkt, dass es ein Fallback ist
     return res.json({
       current: {
-        temp: mockTemp,
-        humidity: mockHumidity,
-        wind: mockWind,
+        temp: 18,
+        humidity: 60,
+        wind: 10,
         code: 1,
-        biteIndex: mockBite,
+        biteIndex: 75,
       },
-      hourlyBiteIndex: Array.from({ length: 24 }, () => mockBite),
+      hourlyBiteIndex: Array.from({ length: 24 }, () => 75),
     });
   }
 });
