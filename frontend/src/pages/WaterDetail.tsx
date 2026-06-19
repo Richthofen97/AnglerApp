@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import "../App.css";
 import { getWaterImage } from "../utils/waterImageHelper";
+import { getLiveWeather } from "../api/weather";
 
 type WaterSpot = {
   _id: string;
@@ -75,21 +76,27 @@ export default function WaterDetail() {
           setWater(currentWater);
           setLocalNotes(currentWater.notes || "");
 
-          // 1. Wetter-API abfragen
-          const apiUrl =
-            import.meta.env.VITE_API_URL || "http://localhost:5000";
-          const weatherRes = await fetch(
-            `${apiUrl}/api/weather?lat=${currentWater.lat}&lng=${currentWater.lng}`,
-          );
-          if (weatherRes.ok) {
-            const weatherData = await weatherRes.json();
-            setSpotWeather(weatherData.current);
+          try {
+            // 1. Nutzt jetzt die umgestellte getLiveWeather-Funktion (POST via Browser)
+            const weatherData = await getLiveWeather(
+              currentWater.lat,
+              currentWater.lng,
+            );
+            if (weatherData && weatherData.current) {
+              setSpotWeather(weatherData.current);
+            }
+          } catch (weatherErr) {
+            console.error(
+              "Fehler beim Laden des Gewässer-Wetters:",
+              weatherErr,
+            );
           }
 
           // 2. NEW CALL: Lädt alle Fische, die an exakt diesem Spot überlistet wurden
           const catchData = await getCatchesForSpot(id);
           setCatches(catchData);
         }
+
         setLoading(false);
       } catch (err) {
         console.error("Fehler beim Laden der Details:", err);
