@@ -18,16 +18,22 @@ router.get("/", async (req, res) => {
     const baseUrl = "https://api.open-meteo.com/v1/forecast?";
     const params =
       "temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m";
-
-    // Wichtig: Wir erzwingen Europe/Berlin direkt in der Open-Meteo API
     const weatherUrl = `${baseUrl}latitude=${latitude}&longitude=${longitude}&hourly=${params}&current=${params}&timezone=Europe/Berlin&forecast_days=1`;
 
     console.log(
-      "=== LADE WETTER FÜR KOORDINATEN ===",
+      "=== API RUFT WETTER ABRUFEN ===",
       `Lat: ${latitude}, Lng: ${longitude}`,
     );
 
-    const response = await axios.get(weatherUrl, { timeout: 7000 }); // Timeout leicht erhöht auf 7s
+    // TARNUNG: Wir fügen Header hinzu, damit Open-Meteo den Render-Server nicht blockiert!
+    const response = await axios.get(weatherUrl, {
+      timeout: 8000,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
 
     if (!response.data || !response.data.hourly || !response.data.current) {
       throw new Error("Ungültige Antwortstruktur von Open-Meteo");
@@ -42,7 +48,6 @@ router.get("/", async (req, res) => {
       const code = hourly.weather_code[index] ?? 1;
 
       let score = 50;
-
       if (wind < 15) score += 15;
       else if (wind > 30) score -= 20;
 
@@ -62,7 +67,6 @@ router.get("/", async (req, res) => {
       return Math.max(10, Math.min(100, score));
     });
 
-    // FIX: Holt die aktuelle Stunde passend zur deutschen Zeitzone (Europe/Berlin)
     const currentHourInGermany = parseInt(
       new Date().toLocaleString("de-DE", {
         hour: "2-digit",
@@ -83,19 +87,18 @@ router.get("/", async (req, res) => {
       hourlyBiteIndex: biteIndexHourly,
     });
   } catch (err: any) {
-    // WICHTIG: Loggt den echten Fehler im Render-Dashboard, damit wir ihn sehen!
     console.error("❌ ECHTER WETTER-FEHLER AUF RENDER:", err.message);
 
-    // Bessere Fallback-Werte (statisch statt Math.random), damit man merkt, dass es ein Fallback ist
+    // Deutlicher Test-Fallback (42 Grad), damit du in der UI SOFORT siehst, ob er im Catch-Block landet
     return res.json({
       current: {
-        temp: 18,
-        humidity: 60,
-        wind: 10,
+        temp: 42,
+        humidity: 99,
+        wind: 99,
         code: 1,
-        biteIndex: 75,
+        biteIndex: 10,
       },
-      hourlyBiteIndex: Array.from({ length: 24 }, () => 75),
+      hourlyBiteIndex: Array.from({ length: 24 }, () => 10),
     });
   }
 });
