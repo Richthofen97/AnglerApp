@@ -1,7 +1,13 @@
 // TEIL 1 VON 3: IMPORTS UND STATES
 import { useEffect, useState } from "react";
 // deleteCatch wurde hier in den API-Imports ergänzt
-import { getAllCatches, createCatch, deleteCatch } from "../api/catches";
+import {
+  getAllCatches,
+  createCatch,
+  deleteCatch,
+  updateCatchVisibility,
+} from "../api/catches";
+
 import { getSpots } from "../api/spots";
 import { FISCH_LEXIKON } from "../pages/fishData";
 import {
@@ -16,6 +22,18 @@ import {
   Trash2, // Neues Icon für den Lösch-Button
 } from "lucide-react";
 import "../App.css";
+// Hilfsfunktion: Holt den Bild-Pfad aus der fishData (.image)
+const getFishFallbackImage = (speciesName: string): string | undefined => {
+  if (!speciesName) return undefined;
+
+  // Findet den passenden Fisch im Lexikon (ignoriert Groß-/Kleinschreibung)
+  const fishMatch = FISCH_LEXIKON.find(
+    (f) => f.name.toLowerCase() === speciesName.toLowerCase(),
+  );
+
+  // Gibt den Pfad aus dem "image"-Feld deines Objekts zurück
+  return fishMatch?.image;
+};
 
 type GlobalCatch = {
   _id: string;
@@ -102,6 +120,40 @@ export default function Diary() {
       alert("Fang konnte nicht gelöscht werden.");
     } finally {
       setIsDeleting(false);
+    }
+  };
+  // NEUE FUNKTION: SICHTBARKEIT (COMMUNITY) ÄNDERN
+  const handleToggleVisibility = async (currentCatch: GlobalCatch) => {
+    // 1. Zuerst den aktuellen Status ermitteln und umdrehen
+    const currentStatus = (currentCatch as any).isPublic || false;
+    const newStatus = !currentStatus;
+
+    try {
+      // 2. Jetzt die API mit dem richtig definierten newStatus aufrufen
+      await updateCatchVisibility(currentCatch._id, newStatus);
+
+      // 3. UI-State sofort aktualisieren
+      setCatches((prev) =>
+        prev.map((item) =>
+          item._id === currentCatch._id
+            ? ({ ...item, isPublic: newStatus } as any)
+            : item,
+        ),
+      );
+
+      // 4. Auch das aktuell geöffnete Detail-Modal aktualisieren
+      setSelectedCatch((prev) =>
+        prev ? ({ ...prev, isPublic: newStatus } as any) : null,
+      );
+
+      alert(
+        newStatus
+          ? "Der Fang ist jetzt in der Community sichtbar! 🌐"
+          : "Der Fang wurde auf privat (Offline) gestellt. 🔒",
+      );
+    } catch (err) {
+      console.error("Fehler beim Ändern der Sichtbarkeit:", err);
+      alert("Status konnte nicht geändert werden.");
     }
   };
 
@@ -239,6 +291,12 @@ export default function Diary() {
                   alt={item.species}
                   style={{ width: "120px", height: "100%", objectFit: "cover" }}
                 />
+              ) : getFishFallbackImage(item.species) ? (
+                <img
+                  src={getFishFallbackImage(item.species)}
+                  alt={item.species}
+                  style={{ width: "120px", height: "100%", objectFit: "cover" }}
+                />
               ) : (
                 <div
                   style={{
@@ -253,6 +311,7 @@ export default function Diary() {
                   <Fish size={28} color="var(--text-muted)" />
                 </div>
               )}
+
               <div
                 style={{
                   flex: 1,
@@ -355,6 +414,12 @@ export default function Diary() {
                   alt={selectedCatch.species}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
+              ) : getFishFallbackImage(selectedCatch.species) ? (
+                <img
+                  src={getFishFallbackImage(selectedCatch.species)}
+                  alt={selectedCatch.species}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
               ) : (
                 <div
                   style={{
@@ -368,6 +433,7 @@ export default function Diary() {
                   <Fish size={48} color="var(--text-muted)" />
                 </div>
               )}
+
               <button
                 onClick={() => setSelectedCatch(null)}
                 style={{
@@ -548,16 +614,62 @@ export default function Diary() {
                 </div>
               )}
 
-              {/* DER NEUE LÖSCH-BUTTON AM ENDE DER DETAILKARTE */}
+              {/* BUTTONS FÜR COMMUNITY-SWITCH UND LÖSCHEN */}
               <div
                 style={{
                   borderTop: "1px solid var(--border-color)",
                   paddingTop: "12px",
                   marginTop: "4px",
                   display: "flex",
-                  justifyContent: "flex-end",
+                  justifyContent:
+                    "space-between" /* Ändert Ausrichtung, damit Platz für beide ist */,
+                  alignItems: "center",
+                  gap: "10px",
                 }}
               >
+                {/* Neuer Community-Switch Button */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisibility(selectedCatch)}
+                  style={{
+                    background: (selectedCatch as any).isPublic
+                      ? "rgba(34, 197, 94, 0.15)" /* Grün wenn veröffentlicht */
+                      : "rgba(255, 255, 255, 0.05)" /* Grau wenn offline */,
+                    border: (selectedCatch as any).isPublic
+                      ? "1px solid rgba(34, 197, 94, 0.4)"
+                      : "1px solid var(--border-color)",
+                    color: (selectedCatch as any).isPublic
+                      ? "#22c55e"
+                      : "var(--text-muted)",
+                    borderRadius: "10px",
+                    padding: "8px 12px",
+                    fontSize: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                    flex: 1 /* Teilt sich den Platz gleichmäßig auf */,
+                    justifyContent: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: (selectedCatch as any).isPublic
+                        ? "#22c55e"
+                        : "#64748b",
+                      display: "inline-block",
+                    }}
+                  />
+                  {(selectedCatch as any).isPublic
+                    ? "🌐 Veröffentlicht"
+                    : "🔒 Offline"}
+                </button>
+
+                {/* Bestehender Lösch-Button (angepasst für Flexbox) */}
                 <button
                   type="button"
                   disabled={isDeleting}
@@ -567,7 +679,7 @@ export default function Diary() {
                     border: "1px solid rgba(239, 68, 68, 0.4)",
                     color: "#ef4444",
                     borderRadius: "10px",
-                    padding: "8px 14px",
+                    padding: "8px 12px",
                     fontSize: "12px",
                     display: "flex",
                     alignItems: "center",
@@ -575,6 +687,8 @@ export default function Diary() {
                     cursor: isDeleting ? "not-allowed" : "pointer",
                     fontWeight: "bold",
                     opacity: isDeleting ? 0.6 : 1,
+                    flex: 1,
+                    justifyContent: "center",
                   }}
                 >
                   <Trash2 size={14} />
@@ -802,6 +916,8 @@ export default function Diary() {
                   }}
                 />
               </div>
+
+              {/* AKTUALISIERTER BILD-UPLOAD-BEREICH (KAMERA & GALERIE) */}
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "4px" }}
               >
@@ -814,21 +930,123 @@ export default function Diary() {
                     gap: "4px",
                   }}
                 >
-                  <Camera size={12} /> Foto hochladen
+                  <Camera size={12} /> Foto hinzufügen (Optional)
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setCatchImage(e.target.files ? e.target.files[0] : null)
-                  }
-                  style={{ fontSize: "12px", color: "var(--text-muted)" }}
-                />
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "2px" }}>
+                  {/* Button für Direkt-Kamera */}
+                  <label
+                    style={{
+                      flex: 1,
+                      background: "var(--bg-dark)",
+                      border: "1px dashed var(--border-color)",
+                      borderRadius: "10px",
+                      padding: "10px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "4px",
+                      cursor: "pointer",
+                      color: "#fff",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <Camera size={16} color="var(--accent-cyan)" />
+                    <span style={{ fontWeight: "500" }}>Foto aufnehmen</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment" /* Öffnet die Kamera auf Mobilgeräten */
+                      onChange={(e) =>
+                        setCatchImage(e.target.files ? e.target.files[0] : null)
+                      }
+                      style={{ display: "none" }}
+                    />
+                  </label>
+
+                  {/* Button für Galerie */}
+                  <label
+                    style={{
+                      flex: 1,
+                      background: "var(--bg-dark)",
+                      border: "1px dashed var(--border-color)",
+                      borderRadius: "10px",
+                      padding: "10px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "4px",
+                      cursor: "pointer",
+                      color: "#fff",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <Plus size={16} color="var(--accent-cyan)" />
+                    <span style={{ fontWeight: "500" }}>Aus Galerie</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setCatchImage(e.target.files ? e.target.files[0] : null)
+                      }
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+
+                {/* Anzeige des ausgewählten Dateinamens */}
+                {catchImage && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--accent-cyan)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      marginTop: "4px",
+                      background: "rgba(0,0,0,0.2)",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                      }}
+                    >
+                      ✓ {catchImage.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCatchImage(null)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#ef4444",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                        padding: "0 2px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Entfernen
+                    </button>
+                  </div>
+                )}
               </div>
+
               <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setCatchImage(null);
+                  }}
                   style={{
                     flex: 1,
                     padding: "10px",

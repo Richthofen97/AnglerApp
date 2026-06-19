@@ -1,15 +1,34 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+// Interface für einen einzelnen Kommentar
+interface IComment {
+  userId: mongoose.Types.ObjectId;
+  userName: string; // Praktisch, um den Namen direkt ohne extra Populate anzuzeigen
+  text: string;
+  createdAt: Date;
+}
+
 export interface ICatch extends Document {
   userId: mongoose.Types.ObjectId;
   spotId: mongoose.Types.ObjectId;
-  species: string; // Fischart (z.B. Hecht, Barsch)
-  weight?: number; // Gewicht in Gramm oder kg
-  length?: number; // Länge in cm
-  imageUrl?: string; // Foto vom Fang (Cloudinary)
-  notes?: string; // Köder, Uhrzeit, Wetterbedingungen
-  caughtAt: Date; // Wann der Fisch gebissen hat
+  species: string;
+  weight?: number;
+  length?: number;
+  imageUrl?: string;
+  notes?: string;
+  caughtAt: Date;
+  isPublic: boolean;
+  likes: mongoose.Types.ObjectId[]; // NEU: Liste von User-IDs, die geliked haben
+  dislikes: mongoose.Types.ObjectId[]; // NEU: Liste von User-IDs, die gedisliked haben
+  comments: IComment[]; // NEU: Liste von Kommentaren
 }
+
+const commentSchema = new Schema<IComment>({
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  userName: { type: String, required: true },
+  text: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
 
 const catchSchema = new Schema<ICatch>(
   {
@@ -21,6 +40,10 @@ const catchSchema = new Schema<ICatch>(
     imageUrl: { type: String, default: "" },
     notes: { type: String, default: "" },
     caughtAt: { type: Date, default: Date.now },
+    isPublic: { type: Boolean, default: false },
+    likes: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }], // NEU
+    dislikes: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }], // NEU
+    comments: { type: [commentSchema], default: [] }, // NEU
   },
   { timestamps: true },
 );
