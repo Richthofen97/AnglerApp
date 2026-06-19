@@ -70,7 +70,6 @@ export default function App() {
         </Routes>
       ) : (
         <>
-          {/* Hauptinhalt erhält dank CSS automatisch Abstand nach unten */}
           <main>
             <Routes>
               <Route
@@ -79,14 +78,14 @@ export default function App() {
                   <Home
                     username={user?.username ?? ""}
                     email={user?.email ?? ""}
-                    onLogout={logout} 
+                    onLogout={logout}
+                  />
                 }
               />
               <Route path="/profil" element={<Profile onLogout={logout} />} />
               <Route path="/faenge" element={<Catches />} />
               <Route path="/gewaesser" element={<Waters />} />
 
-              {/* NEUE ROUTEN */}
               <Route path="/community" element={<Community />} />
               <Route path="/lexikon" element={<Lexikon />} />
 
@@ -95,7 +94,6 @@ export default function App() {
             </Routes>
           </main>
 
-          {/* Die globale Navigationsleiste */}
           <BottomNav />
         </>
       )}
