@@ -287,18 +287,27 @@ export default function WaterDetail() {
             boxSizing: "border-box",
           }}
         >
+          {/* 1. WETTER STATUS ICON */}
           <div style={{ textAlign: "center" }}>
-            <span style={{ fontSize: "24px", display: "block" }}>
-              {spotWeather.code === 0
+            <span
+              style={{
+                fontSize: "20px",
+                display: "block",
+                marginBottom: "2px",
+              }}
+            >
+              {(spotWeather.current?.code ?? spotWeather.code) === 0
                 ? "☀️"
-                : spotWeather.code <= 3
+                : (spotWeather.current?.code ?? spotWeather.code) <= 3
                   ? "⛅"
                   : "🌧️"}
             </span>
             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-              Wetter
+              Status
             </span>
           </div>
+
+          {/* 2. TEMPERATUR */}
           <div style={{ textAlign: "center" }}>
             <span
               style={{
@@ -308,12 +317,14 @@ export default function WaterDetail() {
                 display: "block",
               }}
             >
-              {spotWeather.temp}°C
+              {Math.round(spotWeather.current?.temp ?? spotWeather.temp ?? 0)}°C
             </span>
             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
               Temp
             </span>
           </div>
+
+          {/* 3. BISS-INDEX / BEISSINDEX */}
           <div style={{ textAlign: "center" }}>
             <span
               style={{
@@ -323,7 +334,7 @@ export default function WaterDetail() {
                 display: "block",
               }}
             >
-              {spotWeather.biteIndex}%
+              {spotWeather.current?.biteIndex ?? spotWeather.biteIndex ?? 50}%
             </span>
             <span
               style={{
@@ -335,19 +346,44 @@ export default function WaterDetail() {
               Beißindex
             </span>
           </div>
+
+          {/* 4. WIND */}
           <div style={{ textAlign: "center" }}>
             <span
               style={{
-                fontSize: "16px",
+                fontSize: "18px",
                 fontWeight: "bold",
                 color: "#fff",
                 display: "block",
               }}
             >
-              {spotWeather.wind} km/h
+              {Math.round(spotWeather.current?.wind ?? spotWeather.wind ?? 0)}{" "}
+              <span style={{ fontSize: "11px", fontWeight: "normal" }}>
+                km/h
+              </span>
             </span>
             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
               Wind
+            </span>
+          </div>
+
+          {/* 5. LUFTFEUCHTIGKEIT */}
+          <div style={{ textAlign: "center" }}>
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "#fff",
+                display: "block",
+              }}
+            >
+              {Math.round(
+                spotWeather.current?.humidity ?? spotWeather.humidity ?? 60,
+              )}
+              %
+            </span>
+            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              Feuchte
             </span>
           </div>
         </div>

@@ -6,7 +6,6 @@ import { getWaterImage } from "../utils/waterImageHelper";
 import {
   CloudSun,
   Wind,
-  Gauge,
   Fish,
   LogOut,
   Activity,
@@ -15,6 +14,9 @@ import {
   CloudRain,
   Compass,
   Heart,
+  MoreVertical,
+  User,
+  Droplets,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
@@ -52,6 +54,9 @@ export default function Home({
   const [weather, setWeather] = useState<any>(fallbackWeatherData);
   const [timeX, setTimeX] = useState<number>(50);
   const [currentTimeString, setCurrentTimeString] = useState<string>("");
+
+  // NEU: State, um das Ausfahren des Dropdowns zu steuern
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   async function loadDashboardData() {
     try {
@@ -137,6 +142,7 @@ export default function Home({
     (((weather.hourlyBiteIndex[new Date().getHours()] || 50) - 10) / 90) * 16;
   const weatherDetails = getWeatherDetails(weather.current.code);
   const favoriteWaters = mySpots.filter((w) => w.isFavorite === true);
+
   return (
     <div className="dashboard-container">
       {/* Header */}
@@ -158,6 +164,7 @@ export default function Home({
             pointerEvents: "none",
           }}
         ></div>
+
         <div
           className="hero-top-row"
           style={{ position: "relative", zIndex: 10 }}
@@ -166,23 +173,116 @@ export default function Home({
             <span className="app-logo-text">Angler</span>
             <span className="app-logo-sub">Dein Angelabenteuer</span>
           </div>
-          <button
-            onClick={onLogout}
-            style={{
-              background: "rgba(22, 34, 47, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              color: "var(--text-main)",
-              padding: "8px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            <LogOut size={16} />
-          </button>
+
+          {/* Relativer Container, damit das Menü exakt unter den 3 Punkten aufploppt */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{
+                background: "rgba(22, 34, 47, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "var(--text-main)",
+                padding: "8px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {/* AUSGEFAHRENES DROPDOWN-MENÜ */}
+            {menuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  background:
+                    "linear-gradient(135deg, #1e293b 0%, #16222f 100%)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "10px",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                  display: "flex",
+                  flexDirection: "column",
+                  minWidth: "130px",
+                  overflow: "hidden",
+                  zIndex: 9999, // Liegt immer über allen Elementen
+                }}
+              >
+                {/* 1. BUTTON: Profilseite */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/profil"); // HIER GEÄNDERT: Von /profile zu /profil
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-main)",
+                    padding: "10px 14px",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background =
+                      "rgba(255,255,255,0.05)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <User size={14} color="var(--accent-cyan)" />
+                  <span>Profil</span>
+                </button>
+
+                {/* Trennlinie */}
+                <div
+                  style={{ height: "1px", background: "var(--border-color)" }}
+                ></div>
+
+                {/* 2. BUTTON: Ausloggen */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onLogout();
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-main)",
+                    padding: "10px 14px",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background =
+                      "rgba(255,255,255,0.05)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <LogOut size={14} color="var(--accent-orange)" />
+                  <span>Ausloggen</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
         <div style={{ position: "relative", zIndex: 10, marginTop: "auto" }}>
           <h1
             style={{
@@ -226,11 +326,8 @@ export default function Home({
               {weatherDetails.icon}
               <span>{weatherDetails.text}</span>
             </div>
-            <div className="weather-location">
-              {mySpots.length > 0 && mySpots[0].waterId
-                ? mySpots[0].waterId.name
-                : "Aktueller Standort"}
-            </div>
+            {/* GEÄNDERT: Zeigt jetzt immer verlässlich an, dass es dein GPS-Standort ist */}
+            <div className="weather-location">Aktueller Standort</div>
           </div>
         </div>
         <div className="weather-details-grid">
@@ -242,14 +339,17 @@ export default function Home({
               {Math.round(weather.current.wind)} km/h
             </span>
           </div>
+
+          {/* GEÄNDERT: Druck entfernt, Luftfeuchtigkeit (Humidity) hinzugefügt */}
           <div className="detail-item">
             <span className="detail-label">
-              <Gauge size={12} /> Druck
+              <Droplets size={12} /> Feuchte
             </span>
             <span className="detail-value">
-              {Math.round(weather.current.pressure)} hPa
+              {Math.round(weather.current.humidity)} %
             </span>
           </div>
+
           <div className="detail-item">
             <span className="detail-label">
               <Fish size={12} /> Biss-Id
@@ -260,6 +360,7 @@ export default function Home({
           </div>
         </div>
       </div>
+
       {/* Favoriten */}
       {favoriteWaters.length > 0 && (
         <div className="favorites-section">

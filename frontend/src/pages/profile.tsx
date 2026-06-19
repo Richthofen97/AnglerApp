@@ -1,6 +1,5 @@
 // TEIL 1 VON 3: IMPORTS UND STATES
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { getMe } from "../api/auth";
 import { getAllCatches } from "../api/catches"; // Importiert die Fänge aus dem Tagebuch
 import { FISCH_LEXIKON } from "./fishData"; // Passe den Pfad bei Bedarf an
@@ -17,8 +16,7 @@ type GlobalCatch = {
   species: string;
 };
 
-export default function Profile() {
-  const navigate = useNavigate();
+export default function Profile({ onLogout }: { onLogout: () => void }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [catches, setCatches] = useState<GlobalCatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +30,7 @@ export default function Profile() {
     text: string;
     isError: boolean;
   } | null>(null);
+
   // TEIL 2 VON 3: LOGIK, USEEFFECT UND SUBMIT-FUNKTIONEN
   // Lädt Benutzerdaten und Fänge parallel
   useEffect(() => {
@@ -60,9 +59,17 @@ export default function Profile() {
     loadProfileData();
   }, []);
 
+  // ÄNDERUNG HIER: Nutzt onLogout nur, wenn es wirklich da ist, und löscht sonst manuell das Token
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+    if (typeof onLogout === "function") {
+      onLogout();
+    } else {
+      console.warn(
+        "onLogout Prop wurde nicht gefunden, nutze Fallback-Logout!",
+      );
+      localStorage.removeItem("token");
+      window.location.href = "/"; // Erzwingt einen harten Reload zur Startseite, die dich dann zum Login wirft
+    }
   };
 
   // Hilfsfunktion: Zählt, wie oft eine bestimmte Fischart gefangen wurde

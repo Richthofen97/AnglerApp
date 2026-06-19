@@ -10,6 +10,10 @@ const API = import.meta.env.VITE_API_URL;
 export default function Login({ onLoginSuccess }: Props) {
   const [isLogin, setIsLogin] = useState(true);
 
+  // NEU: Steuert, ob der User gerade den 6-stelligen OTP-Code eingeben muss
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,12 +24,11 @@ export default function Login({ onLoginSuccess }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
   // ==========================================================================
-  // 3D HIGH-TECH PARTIKEL-GLOBUS (Three.js) - Braucht KEINE Bild-Dateien!
+  // 3D HIGH-TECH PARTIKEL-GLOBUS (Three.js) - Unverändert!
   // ==========================================================================
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // 1. Szene & Kamera
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -35,7 +38,6 @@ export default function Login({ onLoginSuccess }: Props) {
     );
     camera.position.z = 10;
 
-    // 2. Renderer initialisieren
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -48,37 +50,32 @@ export default function Login({ onLoginSuccess }: Props) {
 
     mountRef.current.appendChild(renderer.domElement);
 
-    // 3. ECHTEN PARTIKEL-GLOBUS GENERIEREN
-    // Wir erzeugen mathematisch tausende kleine leuchtende Punkte auf einer Kugeloberfläche
-    const particleCount = 2800; // Anzahl der leuchtenden Punkte
+    const particleCount = 2800;
     const radius = 5.0;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-      // Mathematische Verteilung für eine perfekte Kugelform
       const phi = Math.acos(-1 + (2 * i) / particleCount);
       const theta = Math.sqrt(particleCount * Math.PI) * phi;
 
-      positions[i * 3] = radius * Math.cos(theta) * Math.sin(phi); // X
-      positions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi); // Y
-      positions[i * 3 + 2] = radius * Math.cos(phi); // Z
+      positions[i * 3] = radius * Math.cos(theta) * Math.sin(phi);
+      positions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+      positions[i * 3 + 2] = radius * Math.cos(phi);
     }
 
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-    // Material für die leuchtenden Punkte
     const material = new THREE.PointsMaterial({
-      color: 0x2dd4bf, // Dein leuchtendes Cyan (--accent-cyan)
-      size: 0.05, // Größe der einzelnen Punkte
+      color: 0x2dd4bf,
+      size: 0.05,
       transparent: true,
-      opacity: 0.5, // Schön dezent im Hintergrund
+      opacity: 0.5,
     });
 
     const globe = new THREE.Points(geometry, material);
     scene.add(globe);
 
-    // Subtiler innerer Gitterkern für mehr Tiefe
     const wireGeometry = new THREE.SphereGeometry(4.9, 15, 15);
     const wireMaterial = new THREE.MeshBasicMaterial({
       color: 0x16222f,
@@ -89,7 +86,6 @@ export default function Login({ onLoginSuccess }: Props) {
     const core = new THREE.Mesh(wireGeometry, wireMaterial);
     scene.add(core);
 
-    // Positionierung (Desktops rechts versetzt, Handys zentriert)
     if (window.innerWidth > 768) {
       globe.position.x = 3.2;
       core.position.x = 3.2;
@@ -100,21 +96,16 @@ export default function Login({ onLoginSuccess }: Props) {
       core.position.y = 1.0;
     }
 
-    // 4. Animations-Schleife
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-
-      // Kugel sanft rotieren lassen
       globe.rotation.y += 0.0015;
       globe.rotation.x += 0.0003;
       core.rotation.y -= 0.0005;
-
       renderer.render(scene, camera);
     };
     animate();
 
-    // 5. Responsive Resize
     const handleResize = () => {
       if (!mountRef.current) return;
       const width = window.innerWidth;
@@ -138,7 +129,6 @@ export default function Login({ onLoginSuccess }: Props) {
     };
     window.addEventListener("resize", handleResize);
 
-    // 6. Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", handleResize);
@@ -153,7 +143,7 @@ export default function Login({ onLoginSuccess }: Props) {
   }, []);
 
   // ==========================================================================
-  // FORMULAR ABSENDEN (Deine originale Fetch-Logik)
+  // FORMULAR ABSENDEN (Login und Register mit OTP-Weichen)
   // ==========================================================================
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -172,6 +162,15 @@ export default function Login({ onLoginSuccess }: Props) {
 
       const data = await res.json();
 
+      // NEU: Fängt den 401-Status ab, falls der Account noch unbestätigt ist
+      if (res.status === 401 && data.isVerified === false) {
+        setEmail(data.email || email);
+        setIsVerifying(true);
+        setMessage(data.message);
+        setLoading(false);
+        return;
+      }
+
       if (!res.ok) {
         setMessage(data.message || "Fehler beim Login.");
         setLoading(false);
@@ -183,10 +182,13 @@ export default function Login({ onLoginSuccess }: Props) {
         onLoginSuccess();
       }
 
+      // NEU: Schaltet nach der Registrierung direkt zum OTP-Verify um statt zum Login!
       if (!isLogin) {
-        setMessage("Account erstellt – jetzt einloggen");
-        setIsLogin(true);
+        setEmail(email.toLowerCase().trim());
+        setIsVerifying(true);
+        setMessage(data.message || "Bitte gib den Verifizierungscode ein.");
         setUsername("");
+        setPassword("");
       }
     } catch {
       setMessage("Server nicht erreichbar");
@@ -195,6 +197,44 @@ export default function Login({ onLoginSuccess }: Props) {
     }
   }
 
+  // ==========================================================================
+  // NEU: CODE VERIFIZIEREN (Sendet den OTP-Code ans Backend)
+  // ==========================================================================
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    if (!verificationCode.trim()) {
+      setMessage("Bitte gib den Code ein.");
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API}/api/auth/verify-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: verificationCode.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || "Ungültiger oder abgelaufener Code.");
+        setLoading(false);
+        return;
+      }
+
+      // Verifizierung erfolgreich -> Sofort einloggen mit dem erzeugten Token!
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        onLoginSuccess();
+      }
+    } catch {
+      setMessage("Fehler bei der Verbindung zum Server.");
+    } finally {
+      setLoading(false);
+    }
+  }
   return (
     <div
       style={{
@@ -225,26 +265,43 @@ export default function Login({ onLoginSuccess }: Props) {
       {/* Die edle Kachel im Glassmorphism-Design */}
       <div className="login-card" style={{ position: "relative", zIndex: 10 }}>
         <div className="login-card-header">
-          <h2>{isLogin ? "Petri Heil!" : "Registrieren"}</h2>
+          <h2>
+            {isVerifying
+              ? "E-Mail bestätigen"
+              : isLogin
+                ? "Petri Heil!"
+                : "Registrieren"}
+          </h2>
           <p>
-            {isLogin
-              ? "Logge dich ein, um deine Spots zu sehen"
-              : "Erstelle ein Konto für dein Angelabenteuer"}
+            {isVerifying
+              ? `Code gesendet an: ${email}`
+              : isLogin
+                ? "Logge dich ein, um deine Spots zu sehen"
+                : "Erstelle ein Konto für dein Angelabenteuer"}
           </p>
         </div>
 
         {message && (
           <div
             style={{
-              backgroundColor: message.includes("erstellt")
-                ? "rgba(45, 212, 191, 0.15)"
-                : "rgba(239, 68, 68, 0.15)",
-              border: message.includes("erstellt")
-                ? "1px solid var(--accent-cyan)"
-                : "1px solid var(--accent-red)",
-              color: message.includes("erstellt")
-                ? "var(--accent-cyan)"
-                : "var(--accent-red)",
+              backgroundColor:
+                message.includes("erstellt") ||
+                message.includes("erfolgreich") ||
+                message.includes("Bitte prüfe")
+                  ? "rgba(45, 212, 191, 0.15)"
+                  : "rgba(239, 68, 68, 0.15)",
+              border:
+                message.includes("erstellt") ||
+                message.includes("erfolgreich") ||
+                message.includes("Bitte prüfe")
+                  ? "1px solid var(--accent-cyan)"
+                  : "1px solid var(--accent-red)",
+              color:
+                message.includes("erstellt") ||
+                message.includes("erfolgreich") ||
+                message.includes("Bitte prüfe")
+                  ? "var(--accent-cyan)"
+                  : "var(--accent-red)",
               padding: "10px",
               borderRadius: "8px",
               fontSize: "13px",
@@ -255,60 +312,119 @@ export default function Login({ onLoginSuccess }: Props) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="login-form">
-          {!isLogin && (
+        {/* WEICHE: ENTWEDER CODE VERIFIZIEREN ODER NORMALER LOGIN/REGISTER */}
+        {isVerifying ? (
+          <form onSubmit={handleVerifyCode} className="login-form">
             <div className="input-group">
-              <label>Benutzername</label>
+              <label>6-stelliger Bestätigungscode</label>
               <input
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="000000"
+                type="text"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(e) =>
+                  setVerificationCode(e.target.value.replace(/\D/g, ""))
+                } // Nur Zahlen erlauben
                 autoFocus
+                style={{
+                  textAlign: "center",
+                  fontSize: "20px",
+                  letterSpacing: "4px",
+                  fontWeight: "bold",
+                }}
               />
             </div>
-          )}
 
-          <div className="input-group">
-            <label>E-Mail Adresse</label>
-            <input
-              placeholder="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+            <button
+              type="submit"
+              className="btn-login-submit"
+              disabled={loading}
+            >
+              {loading ? "Prüfe Code..." : "Code bestätigen"}
+            </button>
 
-          <div className="input-group">
-            <label>Passwort</label>
-            <input
-              placeholder="Passwort"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+            <button
+              type="button"
+              className="login-toggle-text"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                marginTop: "10px",
+                textDecoration: "underline",
+              }}
+              onClick={() => {
+                setIsVerifying(false);
+                setVerificationCode("");
+                setMessage("");
+              }}
+            >
+              Zurück zum Login
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="login-form">
+            {!isLogin && (
+              <div className="input-group">
+                <label>Benutzername</label>
+                <input
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
 
-          <button type="submit" className="btn-login-submit" disabled={loading}>
-            {loading
-              ? "Bitte warten..."
-              : isLogin
-                ? "Einloggen"
-                : "Registrieren"}
-          </button>
-        </form>
+            <div className="input-group">
+              <label>E-Mail Adresse</label>
+              <input
+                placeholder="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-        <p className="login-toggle-text">
-          {isLogin ? "Noch kein Account?" : "Schon registriert?"}
-          <span
-            className="login-toggle-link"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setMessage("");
-            }}
-          >
-            {isLogin ? "Registrieren" : "Login"}
-          </span>
-        </p>
+            <div className="input-group">
+              <label>Passwort</label>
+              <input
+                placeholder="Passwort"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn-login-submit"
+              disabled={loading}
+            >
+              {loading
+                ? "Bitte warten..."
+                : isLogin
+                  ? "Einloggen"
+                  : "Registrieren"}
+            </button>
+          </form>
+        )}
+
+        {!isVerifying && (
+          <p className="login-toggle-text">
+            {isLogin ? "Noch kein Account?" : "Schon registriert?"}
+            <span
+              className="login-toggle-link"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setMessage("");
+              }}
+            >
+              {isLogin ? "Registrieren" : "Login"}
+            </span>
+          </p>
+        )}
       </div>
     </div>
   );
