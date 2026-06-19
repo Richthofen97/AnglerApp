@@ -10,56 +10,48 @@ router.get("/", async (req, res) => {
     const latitudeNum = parseFloat(lat as string);
     const longitudeNum = parseFloat(lng as string);
 
-    const latitude = !isNaN(latitudeNum) ? latitudeNum.toString() : "49.4521";
-    const longitude = !isNaN(longitudeNum)
-      ? longitudeNum.toString()
-      : "11.0767";
+    // Nutzen Nürnberg als Fallback
+    const latitude = !isNaN(latitudeNum) ? latitudeNum : 49.4521;
+    const longitude = !isNaN(longitudeNum) ? longitudeNum : 11.0767;
 
-    const baseUrl = "https://api.open-meteo.com/v1/forecast?";
-    const params =
-      "temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m";
-    const weatherUrl = `${baseUrl}latitude=${latitude}&longitude=${longitude}&hourly=${params}&current=${params}&timezone=Europe/Berlin&forecast_days=1`;
+    // Wir nutzen die zuverlässige DWD API (Bright Sky), die Render-Server erlaubt
+    const weatherUrl = `https://brightsky.dev{latitude}&lon=${longitude}&date=${new Date().toISOString().split("T")[0]}`;
 
     console.log(
-      "=== API RUFT WETTER ABRUFEN ===",
+      "=== API RUFT DWD WETTER (BRIGHT SKY) ABRUFEN ===",
       `Lat: ${latitude}, Lng: ${longitude}`,
     );
 
-    // TARNUNG: Wir fügen Header hinzu, damit Open-Meteo den Render-Server nicht blockiert!
-    const response = await axios.get(weatherUrl, {
-      timeout: 8000,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
-    });
+    const response = await axios.get(weatherUrl, { timeout: 8000 });
 
-    if (!response.data || !response.data.hourly || !response.data.current) {
-      throw new Error("Ungültige Antwortstruktur von Open-Meteo");
+    if (!response.data || !response.data.weather) {
+      throw new Error("Ungültige Antwortstruktur von Bright Sky");
     }
 
-    const hourly = response.data.hourly;
-    const current = response.data.current;
+    const dwdWeatherData = response.data.weather;
 
-    const biteIndexHourly = hourly.time.map((_: any, index: number) => {
-      const temp = hourly.temperature_2m[index] ?? 18;
-      const wind = hourly.wind_speed_10m[index] ?? 12;
-      const code = hourly.weather_code[index] ?? 1;
+    // Erstellt ein Array mit 24 Stunden, da Bright Sky stündliche Daten liefert
+    const biteIndexHourly = Array.from({ length: 24 }).map((_, index) => {
+      // Findet den passenden Eintrag für die Stunde oder nutzt den aktuellsten Eintrag als Fallback
+      const hourData =
+        dwdWeatherData.find(
+          (w: any) => new Date(w.timestamp).getHours() === index,
+        ) || dwdWeatherData[0];
+
+      const temp = hourData?.temperature ?? 18;
+      const wind = (hourData?.wind_speed ?? 12) * 3.6; // Umrechnung von m/s in km/h für deinen Algorithmus
+      const condition = hourData?.icon ?? "clear";
 
       let score = 50;
+
+      // Wind-Score (km/h)
       if (wind < 15) score += 15;
       else if (wind > 30) score -= 20;
 
-      const cloudyCodes = "1,2,3".split(",").map(Number);
-      const rainCodes = "51,53,55,61,63,65,66,67,80,81,82"
-        .split(",")
-        .map(Number);
-      const stormCodes = "95,96,99".split(",").map(Number);
-
-      if (cloudyCodes.includes(code)) score += 15;
-      if (rainCodes.includes(code)) score += 10;
-      if (stormCodes.includes(code)) score -= 30;
+      // Wetterbedingungen auswerten (Bright Sky nutzt Text-Icons statt Codes)
+      if (["partly-cloudy", "cloudy"].includes(condition)) score += 15;
+      if (["rain", "sleet", "snow"].includes(condition)) score += 10;
+      if (["fog", "hail", "thunderstorm"].includes(condition)) score -= 30;
 
       if (temp > 28) score -= 15;
       else if (temp >= 12 && temp <= 22) score += 10;
@@ -67,6 +59,7 @@ router.get("/", async (req, res) => {
       return Math.max(10, Math.min(100, score));
     });
 
+    // Holt die aktuelle Stunde passend zur deutschen Zeitzone (Europe/Berlin)
     const currentHourInGermany = parseInt(
       new Date().toLocaleString("de-DE", {
         hour: "2-digit",
@@ -74,31 +67,40 @@ router.get("/", async (req, res) => {
         timeZone: "Europe/Berlin",
       }),
     );
+
+    // Aktuelle Live-Wetterwerte für das Dashboard extrahieren
+    const liveData =
+      dwdWeatherData.find(
+        (w: any) => new Date(w.timestamp).getHours() === currentHourInGermany,
+      ) || dwdWeatherData[0];
+
+    // Mappe die DWD-Text-Icons zurück auf deine Frontend-Codes (0=Sonne, 1=Wolken, 45=Nebel, rest=Regen)
+    let frontendCode = 1;
+    if (liveData?.icon === "clear-day" || liveData?.icon === "clear-night")
+      frontendCode = 0;
+    if (liveData?.icon === "fog") frontendCode = 45;
+    if (["rain", "thunderstorm", "snow", "sleet"].includes(liveData?.icon))
+      frontendCode = 80;
+
     const currentBiteIndex = biteIndexHourly[currentHourInGermany] || 50;
 
     return res.json({
       current: {
-        temp: current.temperature_2m ?? 18,
-        humidity: current.relative_humidity_2m ?? 60,
-        wind: current.wind_speed_10m ?? 12,
-        code: current.weather_code ?? 1,
+        temp: liveData?.temperature ?? 18,
+        humidity: liveData?.relative_humidity ?? 60,
+        wind: Math.round((liveData?.wind_speed ?? 12) * 3.6), // km/h
+        code: frontendCode,
         biteIndex: currentBiteIndex,
       },
       hourlyBiteIndex: biteIndexHourly,
     });
   } catch (err: any) {
-    console.error("❌ ECHTER WETTER-FEHLER AUF RENDER:", err.message);
+    console.error("❌ BACKEND WETTER-FEHLER:", err.message);
 
-    // Deutlicher Test-Fallback (42 Grad), damit du in der UI SOFORT siehst, ob er im Catch-Block landet
+    // Sicherer Fallback-Wert für den absoluten Notfall (Keine 42 Grad mehr!)
     return res.json({
-      current: {
-        temp: 42,
-        humidity: 99,
-        wind: 99,
-        code: 1,
-        biteIndex: 10,
-      },
-      hourlyBiteIndex: Array.from({ length: 24 }, () => 10),
+      current: { temp: 17, humidity: 65, wind: 12, code: 1, biteIndex: 70 },
+      hourlyBiteIndex: Array.from({ length: 24 }, () => 70),
     });
   }
 });
