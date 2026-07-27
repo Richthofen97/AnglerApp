@@ -11,7 +11,8 @@ async function getTransporter() {
 
   // Nutzt die Gmail SMTP-Daten aus der .env-Datei
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "://gmail.com", // Tippfehler korrigiert
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+
     port: Number(process.env.SMTP_PORT) || 465,
     secure: true, // true für Port 465 (SSL)
     auth: {
