@@ -28,6 +28,7 @@ router.post("/", async (req, res) => {
       const cloudyCodes = [1, 2, 3];
       const rainCodes = [51, 53, 55, 61, 63, 65, 67, 80, 81, 82];
       const stormCodes = [95, 96, 99];
+
       if (cloudyCodes.includes(code)) score += 15;
       if (rainCodes.includes(code)) score += 10;
       if (stormCodes.includes(code)) score -= 30;
