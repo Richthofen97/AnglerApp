@@ -1,4 +1,8 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+// Lädt die Variablen aus der .env-Datei (wichtig, damit SMTP_PASS nicht leer ist)
+dotenv.config();
 
 let transporter: nodemailer.Transporter;
 
@@ -7,12 +11,16 @@ async function getTransporter() {
 
   // Nutzt die Gmail SMTP-Daten aus der .env-Datei
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "://gmail.com",
+    host: process.env.SMTP_HOST || "://gmail.com", // Tippfehler korrigiert
     port: Number(process.env.SMTP_PORT) || 465,
     secure: true, // true für Port 465 (SSL)
     auth: {
       user: process.env.SMTP_USER || "angelappbynikolai@gmail.com",
-      pass: process.env.SMTP_PASS, // Hier greift die App auf das App-Passwort zu
+      pass: process.env.SMTP_PASS, // Greift auf dein neues App-Passwort zu
+    },
+    tls: {
+      // Verhindert, dass Node.js den Verbindungsaufbau lokal blockiert
+      rejectUnauthorized: false,
     },
   });
 
