@@ -9,18 +9,17 @@ let transporter: nodemailer.Transporter;
 async function getTransporter() {
   if (transporter) return transporter;
 
-  // Nutzt die Gmail SMTP-Daten aus der .env-Datei
+  // Optimiert für den E-Mail-Versand von Render-Servern aus
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-
-    port: Number(process.env.SMTP_PORT) || 465,
-    secure: true, // true für Port 465 (SSL)
+    host: "://gmail.com",
+    port: 587, // Port auf 587 ändern (STARTTLS)
+    secure: false, // MUSS false sein bei Port 587, da die Verbindung unverschlüsselt startet
     auth: {
       user: process.env.SMTP_USER || "angelappbynikolai@gmail.com",
-      pass: process.env.SMTP_PASS, // Greift auf dein neues App-Passwort zu
+      pass: process.env.SMTP_PASS,
     },
     tls: {
-      // Verhindert, dass Node.js den Verbindungsaufbau lokal blockiert
+      // Erzwingt, dass Node nicht wegen lokaler Zertifikate oder IPv6-Handshakes abbricht
       rejectUnauthorized: false,
     },
   });
