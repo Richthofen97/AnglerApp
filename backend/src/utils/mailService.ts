@@ -1,25 +1,23 @@
 import nodemailer from "nodemailer";
-import dotenv from "dotenv";
+import dns from "dns";
 
-// Lädt die Variablen aus der .env-Datei (wichtig, damit SMTP_PASS nicht leer ist)
-dotenv.config();
+// Zwingt Node.js auf Render, standardmäßig IPv4 statt IPv6 zu nutzen
+// Das behebt den ENETUNREACH-Fehler des Render Free Tiers global
+dns.setDefaultResultOrder("ipv4first");
 
 let transporter: nodemailer.Transporter;
 
 async function getTransporter() {
   if (transporter) return transporter;
 
-  // Optimiert für den E-Mail-Versand von Render-Servern aus
+  // Durch "service: 'gmail'" verschwindet der TS-Fehler komplett
   transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587, // Port auf 587 ändern (STARTTLS)
-    secure: false, // MUSS false sein bei Port 587, da die Verbindung unverschlüsselt startet
+    service: "gmail",
     auth: {
       user: process.env.SMTP_USER || "angelappbynikolai@gmail.com",
       pass: process.env.SMTP_PASS,
     },
     tls: {
-      // Erzwingt, dass Node nicht wegen lokaler Zertifikate oder IPv6-Handshakes abbricht
       rejectUnauthorized: false,
     },
   });
