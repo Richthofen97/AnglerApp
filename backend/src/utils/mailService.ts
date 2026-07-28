@@ -11,7 +11,7 @@ async function getTransporter() {
 
   // Optimiert für den E-Mail-Versand von Render-Servern aus
   transporter = nodemailer.createTransport({
-    host: "://gmail.com",
+    host: "smtp.gmail.com",
     port: 587, // Port auf 587 ändern (STARTTLS)
     secure: false, // MUSS false sein bei Port 587, da die Verbindung unverschlüsselt startet
     auth: {
