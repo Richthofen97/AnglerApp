@@ -1,29 +1,30 @@
-import { Resend } from "resend";
+import { BrevoClient } from "@getbrevo/brevo";
 import dotenv from "dotenv";
 
-// Lädt die Variablen vorsichtshalber direkt
 dotenv.config();
 
 export async function sendVerificationEmail(email: string, code: string) {
   try {
-    // WICHTIG: Wir initialisieren Resend ERST HIER INSIDE der Funktion.
-    // Dadurch ist sichergestellt, dass Render die Variable bereits bereitgestellt hat.
-    const apiKey = process.env.RESEND_API_KEY;
-
+    const apiKey = process.env.BREVO_API_KEY;
     if (!apiKey) {
       console.error(
-        "❌ E-Mail-Versand abgebrochen: RESEND_API_KEY fehlt in den Umgebungsvariablen!",
+        "❌ E-Mail-Versand abgebrochen: BREVO_API_KEY fehlt in den Umgebungsvariablen!",
       );
       return;
     }
 
-    const resend = new Resend(apiKey);
+    // Initialisiert den neuen Brevo-Client (v6 Standard)
+    const brevo = new BrevoClient({ apiKey });
 
-    const { data, error } = await resend.emails.send({
-      from: "Angler App <onboarding@resend.dev>",
-      to: email,
+    // Sendet die transaktionale E-Mail direkt über die HTTPS-Schnittstelle
+    await brevo.transactionalEmails.sendTransacEmail({
+      sender: {
+        name: "Angler App",
+        email: "angelappbynikolai@gmail.com", // Deine registrierte Gmail-Adresse
+      },
+      to: [{ email: email }],
       subject: "Dein Angler App Verifizierungscode",
-      html: `
+      htmlContent: `
         <div style="font-family: sans-serif; padding: 20px; background-color: #0f172a; color: #fff; border-radius: 10px;">
           <h2 style="color: #06b6d4;">Willkommen bei der Angler App! 🐟</h2>
           <p>Dein Registrierungscode lautet:</p>
@@ -35,15 +36,10 @@ export async function sendVerificationEmail(email: string, code: string) {
       `,
     });
 
-    if (error) {
-      console.error("Fehler beim E-Mail-Versand via Resend:", error);
-      return;
-    }
-
     console.log(
-      `✉️ Verifizierungscode erfolgreich via Resend an ${email} gesendet! ID: ${data?.id}`,
+      `✉️ Verifizierungscode erfolgreich via Brevo an ${email} gesendet!`,
     );
   } catch (error) {
-    console.error("Unerwarteter Fehler beim E-Mail-Versand:", error);
+    console.error("Fehler beim E-Mail-Versand via Brevo API:", error);
   }
 }
