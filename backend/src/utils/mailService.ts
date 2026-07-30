@@ -1,37 +1,17 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
+import { Resend } from "resend";
+import dotenv from "dotenv";
 
-// Zwingt Node.js auf Render, standardmäßig IPv4 statt IPv6 zu nutzen
-// Das behebt den ENETUNREACH-Fehler des Render Free Tiers global
-dns.setDefaultResultOrder("ipv4first");
+// Lädt die Umgebungsvariablen aus der .env-Datei
+dotenv.config();
 
-let transporter: nodemailer.Transporter;
-
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  // Durch "service: 'gmail'" verschwindet der TS-Fehler komplett
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER || "angelappbynikolai@gmail.com",
-      pass: process.env.SMTP_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-
-  return transporter;
-}
+// Initialisiert Resend mit dem API-Key aus den Umgebungsvariablen
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, code: string) {
   try {
-    const client = await getTransporter();
-
-    await client.sendMail({
-      // Wichtig: 'from' muss mit deiner Gmail-Adresse übereinstimmen
-      from: '"Angler App" <angelappbynikolai@gmail.com>',
+    const { data, error } = await resend.emails.send({
+      // Wichtig: Im kostenlosen Testmodus von Resend muss hier 'onboarding@resend.dev' stehen
+      from: "Angler App <onboarding@resend.dev>",
       to: email,
       subject: "Dein Angler App Verifizierungscode",
       html: `
@@ -46,8 +26,15 @@ export async function sendVerificationEmail(email: string, code: string) {
       `,
     });
 
-    console.log(`✉️ Verifizierungscode erfolgreich an ${email} gesendet!`);
+    if (error) {
+      console.error("Fehler beim E-Mail-Versand via Resend:", error);
+      return;
+    }
+
+    console.log(
+      `✉️ Verifizierungscode erfolgreich via Resend an ${email} gesendet! ID: ${data?.id}`,
+    );
   } catch (error) {
-    console.error("Fehler beim E-Mail-Versand:", error);
+    console.error("Unerwarteter Fehler beim E-Mail-Versand:", error);
   }
 }
