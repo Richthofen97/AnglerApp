@@ -1,16 +1,25 @@
 import { Resend } from "resend";
 import dotenv from "dotenv";
 
-// Lädt die Umgebungsvariablen aus der .env-Datei
+// Lädt die Variablen vorsichtshalber direkt
 dotenv.config();
-
-// Initialisiert Resend mit dem API-Key aus den Umgebungsvariablen
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, code: string) {
   try {
+    // WICHTIG: Wir initialisieren Resend ERST HIER INSIDE der Funktion.
+    // Dadurch ist sichergestellt, dass Render die Variable bereits bereitgestellt hat.
+    const apiKey = process.env.RESEND_API_KEY;
+
+    if (!apiKey) {
+      console.error(
+        "❌ E-Mail-Versand abgebrochen: RESEND_API_KEY fehlt in den Umgebungsvariablen!",
+      );
+      return;
+    }
+
+    const resend = new Resend(apiKey);
+
     const { data, error } = await resend.emails.send({
-      // Wichtig: Im kostenlosen Testmodus von Resend muss hier 'onboarding@resend.dev' stehen
       from: "Angler App <onboarding@resend.dev>",
       to: email,
       subject: "Dein Angler App Verifizierungscode",
